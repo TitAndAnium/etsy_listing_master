@@ -1,0 +1,37 @@
+# LAST MODIFIED: 2025-08-06 - Handmade-flex implementation (F1.3.4)
+# COMMIT: Added conditional handmade rule based on allow_handmade flag
+# AUTHOR: Cascade (Windsurf)
+::VERSION:: v3.0.4
+
+::STRUCTURE::
+- ASCII-only
+- Max 140 characters
+- Include primary keyword in the first 5 words
+- No emojis or hashtags
+- No ALL CAPS (except 1 allowed keyword max)
+- Output must be a single line, title-style formatted string
+
+::INPUT::
+<<RAW_INPUT>>
+
+::CONTEXT::
+<<CLASSIFIER_CONTEXT>>
+Contains data about audience, gifting context, product type, tone, gender, style, and occasion.
+
+::CONSTRAINTS::
+- Etsy rules enforced (title length, ASCII, no specials)
+- U.S. audience tone
+- Highlight key feature or personalization aspect
+- Include gifting intent if applicable (wedding, anniversary, bridesmaids, etc.)
+- Use engaging but natural language
+- The title **must** contain the product type (ring, necklace, bracelet, etc.)
+- HANDMADE RULE: If {allow_handmade}=false, the title **must not** contain "handmade"; use alternatives like "artisan-made", "hand-crafted", "crafted", "artisan", etc. If {allow_handmade}=true, you MAY use "handmade" exactly once for genuine artisan products.
+
+::TRANSFER::
+Use any relevant tagwords, style hints or descriptive phrases from classifier context to enrich the title, but do not duplicate words.
+
+::GOAL::
+Craft a compelling, unique Etsy title that attracts U.S.-based gift buyers and is fully compliant with Etsy SEO formatting.
+
+::OUTPUT::
+Respond only with the optimized Etsy title.

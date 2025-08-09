@@ -1,0 +1,125 @@
+#meta
+filename: tone_style_v2.5.txt
+version: v2.5.0
+created: 2025-05-25
+updated: 2025-05-25
+type: tone_matrix
+context_required: true
+
+# tone_style.txt – Tone Logic Matrix V2.5 (Rich Foundation)
+
+=== STRATEGIC ROLE ===
+This file defines the tone, rhythm and emotional stance of all Etsy outputs. Prompts adapt their language based on visual mood, audience profile, gifting role and context. This matrix should guide the AI in tone calibration — not restrict its range.
+
+---
+
+=== STYLE_TREND BEHAVIOR MATRIX ===
+
+style_trend: "boho"
+- soft, poetic, mindful, earthy
+- suitable for: spiritual buyers, slow-living niches, handcraft audiences
+
+style_trend: "gothic"
+- bold, mysterious, unapologetic, intense
+- suitable for: alt-fashion, metal fans, collectors, Gen Z subcultures
+
+style_trend: "minimalist"
+- sleek, elegant, precise, clean
+- suitable for: modern buyers, design purists, tech-aligned shoppers
+
+style_trend: "retro"
+- nostalgic, playful, culturally referential
+- suitable for: Gen X, themed parties, collectors, fan merch
+
+style_trend: "funny"
+- casual, punchy, cheeky, sarcastic
+- suitable for: informal gifts, best friend humor, Gen Z buyers
+
+style_trend: "vintage floral"
+- romantic, gentle, timeless, sentimental
+- suitable for: mothers, brides, nature-themed occasions
+
+style_trend: "sports/street"
+- confident, motivational, bold, direct
+- suitable for: male teens, gym/fitness, youth lifestyle
+
+style_trend: "academic/classic"
+- mature, reserved, structured, intelligent
+- suitable for: teachers, older men, legacy gifts
+
+---
+
+=== AUDIENCE PROFILE TONE DIRECTIVES ===
+
+audience_profile: "youth_edgy"
+- Use slang-light casual tone, bold phrasing, cultural cues
+- Avoid emotional softness unless gift_emotion = “recognition”
+
+audience_profile: "midlife_women_classy"
+- Tone must reflect emotional intelligence, stylish restraint
+- Use affirming, elegant phrasing (“refined”, “meaningful”, “understated beauty”)
+
+audience_profile: "mothers"
+- Emphasize care, warmth, memory-making
+- Avoid sarcasm or edgy humor
+
+audience_profile: "religious_youth"
+- Wholesome tone only; avoid ambiguity, sarcasm, or irreverent language
+
+audience_profile: "older_men"
+- Keep language simple, direct, and meaningful
+- Avoid fluff, hashtags, or stylized modifiers
+
+audience_profile: "brides/bridesmaids"
+- Use celebration tone, emotional excitement, and group belonging
+- Include gifting intent and visual elegance
+
+audience_profile: "pet_owners"
+- Use nurturing, heartfelt, playful language
+- Tone may vary based on breed (e.g. “dignified” for cats, “goofy” for pugs)
+
+audience_profile: "baby_gift_buyers"
+- Use soft language, emotional resonance, focus on care and memory
+- Avoid over-complex phrasing or modern jargon
+
+audience_profile: "corporate_team_buyers"
+- Tone must remain neutral-professional with subtle energy
+- Use team-centric language (“shared win”, “celebrate milestones”)
+
+---
+
+=== BUYER VS RECEIVER SWITCHING ===
+
+If buyer_vs_receiver = "buyer":
+- Begin with motive, care or intention: “Show them how much you care”
+- Justify tone and product function as part of the gifting moment
+- Phrase must link item to occasion or recipient meaning
+
+If buyer_vs_receiver = "receiver":
+- Start from experience: “Feels special”, “Makes you smile”, “Carries a moment”
+- Use sensory-based phrases over logical ones
+- Highlight emotional or lifestyle fit
+
+---
+
+=== ADVANCED FALLBACKS ===
+
+If audience_profile AND style_trend are both missing:
+- Use neutral but warm tone focused on “timeless” and “personal”
+- Example: “A versatile piece that carries meaning beyond trends”
+
+If gift_emotion = surprise AND audience = conservative:
+- Switch from “playful/bold” → “light, subtle wit” tone
+
+If image = pastel/feminine BUT product_type = men’s item:
+- Phrase tone as: “Designed with balance in mind — soft tones meet confident style”
+
+---
+
+=== FINAL RULES ===
+- NEVER mismatch tone with visual style
+- NEVER default to “neutral” — always include a tonal direction
+- ALWAYS reflect the role of the buyer: intention, emotion, or experience
+- ALWAYS fallback to warm, evergreen, meaningful tone if all else fails
+
+RETURN NO TEXT – THIS FILE IS FOR STRATEGIC CONTEXT INJECTION ONLY.

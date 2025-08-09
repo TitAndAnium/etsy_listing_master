@@ -1,0 +1,70 @@
+#meta
+filename: description_rules.txt
+version: v2.0.0
+created: 2025-05-25
+updated: 2025-05-25
+type: rules
+context_required: true
+
+# Etsy AI-Hacker – Description Structure & Validation Rules
+
+This file defines the structure, formatting, content tone and alignment logic for Etsy product descriptions. It reflects Etsy buyer behavior, Gift Mode psychology, and personalization context. Tone and section order must match product identity.
+
+[DESCRIPTION FORMAT]
+- ASCII-only output: no smart quotes, emojis, symbols, markdown, or HTML.
+- All numbers in timeframes must be written out (e.g. “four to six days”).
+- No currency symbols, price patterns, or promotional phrases allowed.
+- All text must be in English unless otherwise specified by user input or context.
+- Use hyphen (-) or asterisk (*) for bullet points; avoid symbols such as • or →.
+- Descriptions must follow the block structure below — but only include sections for which relevant input is available.
+- Each section title must be surrounded by triple colons and line-separated.
+- Line breaks must be present between all bullets and sections.
+- Tone must match the product’s emotional intent: humorous, restrained, bold, ironic, sentimental or neutral — as supported by mockup, metadata or audience.
+
+[BLOCK STRUCTURE – RECOMMENDED ORDER]
+Descriptions should follow this order if contextually supported:
+
+::: Overview :::
+A concise emotional hook of 1–2 sentences using the focus keyword. Max 160 characters. Tone must be aligned with visual and listing intent.
+
+::: Personalization Guide ::: (only if personalization = true)
+Explain what can be personalized, how it’s submitted, and where it appears.
+
+::: Shipping and Processing ::: (required if delivery metadata is available)
+Production time, shipping origin, and method (e.g. “Ships from US in four to six days with tracked delivery.”)
+
+::: Features ::: (required)
+- Key feature or use context
+- Visual/material detail
+- Functional benefit
+- Emotional or gifting angle
+- Trend, style, or Etsy-relevant context
+
+::: Available Sizes ::: (optional)
+Physical dimensions if known.
+
+::: Care Instructions ::: (optional)
+Maintenance guidance, only if relevant.
+
+::: Final Note ::: (optional)
+Closing CTA or gift-aligned phrase.  
+Examples: “Perfect for gifting”, “A unique keepsake they’ll love”, “Make them smile every time they unwrap it”
+
+[LOGIC & VALIDATION RULES]
+- Always generate: Overview and Features blocks
+- Include Shipping only if input data supports it
+- Include Personalization Guide only if personalization = true
+- Optional blocks (Sizes, Care, Final Note) are skipped silently when irrelevant or unsupported
+- Do not repeat identical content across multiple blocks
+- Maintain tone consistency with title and tags. Register shifts must be justified by context (e.g. irony in all three fields).
+- Descriptions should not overstate emotional tone unless supported by the product, design or niche.
+- Flat tone is acceptable and preferred for functional or masculine listings, or when emotionality is irrelevant.
+
+[WARNINGS & FALLBACK HANDLING]
+- If a non-required section is skipped due to missing or insufficient input, log a non-blocking warning (e.g. “Available Sizes skipped – no size data detected.”)
+- Warnings must be recorded in the run log (e.g. Firestore field: warnings[])
+- Warnings do not trigger retry, fallback mode, or credit deductions
+- They may be shown in the frontend UI to inform users and optionally allow manual edits or copy-paste inserts
+- Required blocks (Overview, Features, Shipping if available) still trigger retry if missing
+
+#end

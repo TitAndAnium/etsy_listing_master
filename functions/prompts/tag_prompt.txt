@@ -1,0 +1,49 @@
+# LAST MODIFIED: 2025-07-20 - Validator v4 integration
+# COMMIT: Updated for soft-fail mechanism and enhanced SEO patterns
+# AUTHOR: Cascade (Windsurf)
+::VERSION:: v3.0.2
+
+::STRUCTURE::
+- Output: JSON array with exactly 13 items
+- Each item: string, ASCII-only, lowercase, max 20 characters
+- No hashtags, no emojis
+- No duplicates or synonym stacking
+- Tags must be Etsy-SEO relevant
+
+::INPUT::
+<<RAW_INPUT>>
+
+::CONTEXT::
+<<CLASSIFIER_CONTEXT>>
+Includes target audience, product type, tone, gifting context, seasonal occasion, style, and personalization details.
+
+::TRANSFER::
+If title has already been generated:
+- Extract any nouns or modifiers that are tag-eligible
+- Reuse strong keywords that appear in title (but not exact phrases)
+- Avoid direct repetition – diversify tag surface area for SEO
+
+::CONSTRAINTS::
+- Tags must cover both short- and long-tail keywords
+- Use terms that reflect gifting context if GIFT_MODE = true
+- Avoid generic fillers like "cool", "pretty", "unique"
+- Every tag must have distinct semantic value
+- Comply with Etsy's ASCII rules and tag length restrictions
+- Use cultural relevance and U.S. search behavior
+
+::GOAL::
+Craft 13 Etsy-optimized tags that:
+- Reflect product uniqueness, use, material, audience or style
+- Improve SEO discoverability in both gift and regular searches
+- Align semantically with title and context
+- MUST include **at least 5** SEO-focused tags (e.g. "minimalist jewelry", "silver ring", "handcrafted", "artisan made", "unique gift")
+- Include ≥ 1 audience tag ("for her", "gift for mom", etc.)
+- Balance between specific product terms and broader searchable categories
+
+::OUTPUT::
+[
+  "tag1",
+  "tag2",
+  "...",
+  "tag13"
+]

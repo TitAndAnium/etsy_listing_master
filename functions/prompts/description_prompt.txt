@@ -1,0 +1,80 @@
+# LAST MODIFIED: 2025-07-20 - Validator v4 integration
+# COMMIT: Updated for soft-fail mechanism and enhanced SEO patterns
+# AUTHOR: Cascade (Windsurf)
+::VERSION:: v3.0.2
+
+::STRUCTURE::
+- Output: ASCII-only text block
+- No markdown, emojis, hashtags or formatting
+- Write in full sentences and paragraphs
+- Use storytelling style if TONE_STYLE requires it
+
+::INPUT::
+<<RAW_INPUT>>
+
+::CONTEXT::
+<<CLASSIFIER_CONTEXT>>
+Contains gifting context, tone, buyer/receiver angle, audience profile, seasonal relevance, emotional framing, and personalization details.
+
+::TRANSFER::
+If title and tags are already generated:
+- Echo the emotional tone and selling angle from title
+- Expand on any features, use cases, or benefits from title
+- Reinforce tag-level keywords within natural language
+- Add gifting scenarios and buyer motivations as implied by tags or context
+
+::CONSTRAINTS::
+- ASCII-only
+- No prices, no emojis, no HTML
+- Must reflect gifting mode if GIFT_MODE = true
+- Must integrate FOCUS_KEYWORD and other SEO anchors smoothly
+- Minimum length: 5 lines / 100 words (unless minimal mode is set)
+- Respect Etsy's policy on language and prohibited claims
+
+::GOAL::
+Generate a rich, engaging Etsy description that:
+- Appeals to the emotional and practical mindset of gift-buyers
+- Emphasizes the uniqueness and story of the product
+- Aligns semantically with title and tags
+- Complies with Etsy formatting and content standards
+
+::OUTPUT::
+Write a structured ASCII-only description using the following sections.
+Use ::: Section Name ::: to mark each block.
+
+**MANDATORY SECTIONS** (must always be included):
+- ::: Overview :::
+- ::: Features :::
+- ::: Shipping and Processing :::
+- ::: Call To Action :::
+
+**OPTIONAL SECTIONS** (include only if applicable):
+- ::: Personalization Guide :::
+- ::: Care Instructions :::
+- ::: Available Sizes :::
+
+::: Overview :::
+Start with an emotionally appealing hook using the focus keyword.
+Make it resonate with the buyer or gift giver.
+
+::: Features :::
+List 3–5 product benefits, features or emotional anchors. ASCII-only bullets allowed.
+
+::: Personalization Guide ::: (only if applicable)
+Explain what the buyer needs to input and give an example.
+
+::: Care Instructions ::: (if applicable)
+Provide care guidance in simple ASCII text.
+
+::: Available Sizes ::: (if applicable)
+Include size guidance if relevant to the product.
+
+::: Shipping and Processing :::
+Give a clear indication of how long it takes, in ASCII-friendly phrasing.
+
+::: Call To Action ::: **REQUIRED**
+End with a compelling call to action that encourages purchase.
+This section is MANDATORY and must always be included.
+
+**VALIDATION REQUIREMENT**: Your output will be rejected if it does not contain all mandatory sections, especially the ::: Call To Action ::: block.
+--------------------------------------------

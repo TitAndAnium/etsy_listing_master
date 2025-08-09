@@ -1,0 +1,85 @@
+#meta
+filename: etsy_rules.txt
+version: v2.0.0
+created: 2025-05-25
+updated: 2025-05-25
+type: compliance_rules
+context_required: true
+
+# etsy_rules_v2.txt — Platform Compliance & Enforcement Layer
+# Versie 2.0 — Opgesteld: 2025-05-25
+
+=== FORMAT & CHARACTER RULES ===
+- All content must be strictly ASCII-only.
+- No emojis, smart quotes, or typographic punctuation allowed.
+- All text must be in plain text format (no markdown, bullets only via ASCII).
+- Tags must be lowercase only, comma-separated, and ≤ 20 characters each.
+- Titles must be ≤ 140 characters (Etsy enforced limit).
+- Description blocks must use this order (if used): Overview, Features, Personalization, Sizes, Care, Shipping.
+
+=== PROHIBITED CONTENT ===
+- No links, domains, coupon codes, or external references.
+- No price references (e.g. “only $9.99”, “10% off”).
+- No claims that violate Etsy’s trust policy: “fastest”, “safest”, “guaranteed”, etc.
+- No vague seller-perspective claims: “great quality”, “amazing item”, “top seller”.
+
+=== SEARCH & SEO STRUCTURE ===
+- The first 5 words in a title must include the main focus keyword.
+- Do not repeat the same keyword or synonym across title, tags, and category (Etsy penalizes stacking).
+- Avoid overlapping keywords between tags and categories (use complementary terms).
+- Use search language as buyers phrase it — not seller jargon.
+- Each field must serve a distinct SEO purpose:
+  - Title: keyword visibility + scroll-stopping relevance
+  - Tags: long-tail reach + buyer intent diversity
+  - Description: conversion logic + tone/emotion alignment
+
+=== INPUT PRIORITY (FOR AI SYSTEM) ===
+- Visual > mockup > user description > dump → hierarchy of trust
+- If visual data strongly implies a product type or tone, it overrides text-based input.
+- If dump contains raw Etsy JSON, normalize before use — discard UI noise.
+
+=== FIELD SYNC & TONE ALIGNMENT ===
+- Tags must never contradict the tone or intent of the title or description.
+- If personalization is active, all layers must include a matching cue.
+- Seasonal context must align across tags, tone, and emotional framing.
+- Descriptions must never promise customization unless personalization = true.
+
+=== CONTEXTUAL GIFTING RULES ===
+- If gift_mode = true but no gift_emotion is set → fallback to “thoughtful” tone or “neutral-emotive” override.
+- Do not use gifting phrases (e.g., “makes a perfect gift”) unless emotionally supported by context.
+- If buyer_vs_receiver = “receiver”, descriptions must avoid sales tone and use recipient-focused phrasing.
+
+=== TECHNICAL BEHAVIOR ENFORCEMENT ===
+- If rules are violated:
+  - Retry prompt with correction
+  - Log invalid segment in Firestore (by field)
+  - Trigger fallback path if multiple violations persist
+
+RETURN NO OUTPUT IF STRUCTURE FAILS — fallback must take over.
+
+
+[PLATFORM POLICIES]
+- Do not include misleading claims, fake urgency, or brand name abuse.
+- All listings must comply with Etsy’s IP, copyright, and community standards.
+- Use clear and correct English unless otherwise specified.
+- Do not include personal data, external links, or contact information.
+- Listings must be importable into Etsy with no validation errors.
+
+[LISTING STRUCTURE]
+- Every product must include: title, tags, description, category, and at least one image.
+- Each field must be unique — no repetition of identical or synonymous words across title, tags, and category.
+- No price-like patterns allowed in any field (e.g. $12, 2.99, 3–5).
+- If personalization is offered, it must be clearly explained and usable by the buyer.
+- Materials and sizing must be specified if required by Etsy’s category structure.
+
+[CONTENT RESTRICTIONS]
+- Avoid banned or risky keywords, including medical claims or adult content.
+- Subculture, seasonal or niche terms are allowed only if visually or contextually justified.
+- Evergreen framing is preferred unless strong seasonal relevance is confirmed via metadata or image.
+- The product title must truthfully describe what is being sold (no phantom bundles or misleading framing).
+
+[INPUT PRIORITY]
+- Visual input always overrides conflicting text input.
+- If there is a mismatch between the image and dump/manual data: use the visual product as primary source of truth.
+
+#end

@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Production-ready security rules for Etsy AI-Hacker
+    
+    // AI Generation Logs - Write-only for authenticated functions, read for admins
+    match /ai_generation_logs/{logId} {
+      // Allow Functions to write logs with proper authentication
+      allow create: if request.auth != null && request.auth.uid == 'etsy-ai-hacker-function';
+      // Allow admin users to read logs for monitoring
+      allow read: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // User Sessions - User can only access their own data
+    match /user_sessions/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // API Usage Metrics - Functions only
+    match /api_metrics/{metricId} {
+      allow create, update: if request.auth != null && request.auth.uid == 'etsy-ai-hacker-function';
+      allow read: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // Validation Results - Functions write, users read their own
+    match /validation_results/{resultId} {
+      allow create: if request.auth != null && request.auth.uid == 'etsy-ai-hacker-function';
+      allow read: if request.auth != null && 
+        (request.auth.token.admin == true || 
+         resource.data.user_id == request.auth.uid);
+    }
+    
+    // Prompt Versions - Read-only for functions, admin write
+    match /prompt_versions/{versionId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // Block all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

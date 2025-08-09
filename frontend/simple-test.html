@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pre-Run Context Form Test</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-container { max-width: 800px; margin: 0 auto; }
+        .field-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .checkbox-group { display: flex; gap: 15px; }
+        .checkbox-group input { width: auto; }
+        .badge { background: #e2e8f0; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin: 2px; }
+        .warning { color: #dc2626; font-size: 14px; margin-top: 5px; }
+        .submit-btn { background: #000; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="form-container">
+            <h1>🎯 Complete AI Listing Flow</h1>
+            <!-- Step 1: Input -->
+            <div class="section">
+                <h2>📝 Raw Input</h2>
+                <input v-model="rawInput" type="text" placeholder="Enter your product idea (e.g. eierdopje)">
+                <button class="submit-btn" @click="startFlow" :disabled="loading" style="margin-top: 10px;">
+                    <span v-if="loading">⏳ Processing...</span>
+                    <span v-else>🚀 Start AI Flow</span>
+                </button>
+            </div>
+            <!-- Step 2: Classifier Output -->
+            <div v-if="classifierOutput" class="section">
+                <h2>🤖 AI Context Analysis</h2>
+                <div class="grid">
+                    <div><strong>Focus Keyword:</strong> {{ classifierOutput.focus_keyword }}</div>
+                    <div><strong>Product Type:</strong> {{ classifierOutput.product_type }}</div>
+                    <div><strong>Audience:</strong> {{ classifierOutput.audience }}</div>
+                    <div><strong>Style Trend:</strong> {{ classifierOutput.style_trend }}</div>
+                </div>
+                <button class="submit-btn" @click="runChaining" :disabled="chainingLoading" style="margin-top: 15px;">
+                    <span v-if="chainingLoading">🧠 Generating Listing...</span>
+                    <span v-else>✨ Generate Title, Tags & Description</span>
+                </button>
+            </div>
+            <!-- Step 3: Final Output -->
+            <div v-if="chainOutput" class="section">
+                <h2>🎯 Final Etsy Listing</h2>
+                <div style="margin-bottom: 20px;">
+                    <h3>📝 SEO Title</h3>
+                    <div style="padding: 15px; background: #f0f9ff; border-radius: 6px; border-left: 4px solid #3b82f6;">
+                        {{ chainOutput.title }}
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <h3>🏷️ Tags ({{ chainOutput.tags.length }}/13)</h3>
+                    <div style="padding: 15px; background: #f8fafc; border-radius: 6px;">
+                        <span v-for="tag in chainOutput.tags" :key="tag" 
+                              :style="{
+                                  display: 'inline-block', 
+                                  padding: '6px 12px', 
+                                  margin: '4px', 
+    </div>
+                        title: this.chainOutput.title,
+                        tags: this.chainOutput.tags.join(', '),
+                        description: this.chainOutput.description
+                    };
+                    const text = `TITLE:\n${output.title}\n\nTAGS:\n${output.tags}\n\nDESCRIPTION:\n${output.description}`;
+                    navigator.clipboard.writeText(text);
+                    this.copied = true;
+                    setTimeout(() => this.copied = false, 3000);
+                },
+                downloadJson() {
+                    if (!this.chainOutput) return;
+                    const data = {
+                        title: this.chainOutput.title,
+                        tags: this.chainOutput.tags,
+                        description: this.chainOutput.description
+                    };
+                    const jsonStr = JSON.stringify(data, null, 2);
+                    const blob = new Blob([jsonStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `etsy-ai-output.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+                exportJson() {
+                    const data = {
+                        input: this.rawInput,
+                        classifier: this.classifierOutput,
+                        output: this.chainOutput,
+                        timestamp: new Date().toISOString()
+                    };
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `etsy-listing-${this.rawInput}.json`;
+                    a.click();
+                }
+            }
+        }).mount('#app');
+    </script>
+                    <input v-model="form.focus_keyword" type="text">
+                </div>
+                
+                <div class="field-group">
+                    <label>Product Type</label>
+                    <input v-model="form.product_type" type="text">
+                </div>
+                
+                <div class="field-group">
+                    <label>Audience</label>
+                    <input v-model="form.audience" type="text">
+                </div>
+                
+                <div class="field-group">
+                    <label>Buyer vs Receiver</label>
+                    <select v-model="form.buyer_vs_receiver">
+                        <option value="self">Self</option>
+                        <option value="friend">Friend</option>
+                        <option value="spouse">Spouse</option>
+                        <option value="parent">Parent</option>
+                        <option value="colleague">Colleague</option>
+                    </select>
+                </div>
+                
+                <div class="field-group">
+                    <label>Style Trend</label>
+                    <input v-model="form.style_trend" type="text">
+                </div>
+                
+                <div class="field-group">
+                    <label>Seasonal Context</label>
+                    <input v-model="form.seasonal_context" type="text">
+                </div>
+            </div>
+            
+            <div class="field-group">
+                <label>Personalization Options</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" v-model="form.personalization.name"> Name</label>
+                    <label><input type="checkbox" v-model="form.personalization.date"> Date</label>
+                    <label><input type="checkbox" v-model="form.personalization.color"> Color</label>
+                    <label><input type="checkbox" v-model="form.personalization.size"> Size</label>
+                </div>
+            </div>
+            
+            <div class="field-group" v-if="form.retry_reason">
+                <label>Retry Reason</label>
+                <div class="badge">{{ form.retry_reason }}</div>
+                <div class="warning">⚠️ AI had issues with sparse input</div>
+            </div>
+            
+            <div class="field-group">
+                <label>Raw Input (for backend test)</label>
+                <input v-model="rawInput" type="text" placeholder="Enter text to send to backend">
+            </div>
+            
+            <div class="field-group">
+                <button class="submit-btn" @click="handleConfirm" :disabled="loading">
+                    <span v-if="loading">⏳ Calling Backend...</span>
+                    <span v-else>Confirm & Continue</span>
+                </button>
+            </div>
+            
+            <div v-if="confirmed" style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 4px;">
+                <h3>✅ Step 1: Confirmed Pre-Run Data</h3>
+                <pre>{{ JSON.stringify(confirmedData, null, 2) }}</pre>
+            </div>
+            
+            <div v-if="classifierOutput" style="margin-top: 20px; padding: 15px; background: #f0fff4; border-radius: 4px;">
+                <h3>🤖 Step 2: Backend Classifier Output</h3>
+                <pre>{{ JSON.stringify(classifierOutput, null, 2) }}</pre>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 4px;">
+                    <strong>🔜 Next: Ready for Chaining Step</strong><br>
+                    <small>Title → Tags → Description generation can now start with this confirmed context.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    confirmed: false,
+                    confirmedData: null,
+                    classifierOutput: null,
+                    loading: false,
+                    rawInput: 'eierdopje',
+                    form: {
+                        focus_keyword: 'egg cup',
+                        product_type: 'kitchen accessory',
+                        audience: 'European home decorators',
+                        buyer_vs_receiver: 'self',
+                        personalization: {
+                            name: false,
+                            date: false,
+                            color: true,
+                            size: false
+                        },
+                        style_trend: 'minimalist',
+                        seasonal_context: 'year-round',
+                        retry_reason: 'inference_failed_due_to_sparse_input'
+                    }
+                }
+            },
+            methods: {
+                async handleConfirm() {
+                    // Eerst de bevestigde data vastleggen
+                    this.confirmedData = {
+                        confirmed_fields: { ...this.form },
+                        confirmed_by_user: true,
+                        timestamp: new Date().toISOString()
+                    };
+                    this.confirmed = true;
+                    console.log('Gebruiker heeft bevestigd:', this.confirmedData);
+                    
+                    // Nu de echte backend aanroepen
+                    await this.callBackendClassifier();
+                },
+                
+                async callBackendClassifier() {
+                    this.loading = true;
+                    try {
+                        console.log('Calling backend with rawText:', this.rawInput);
+                        
+                        // Gebruik een proxy of direct call zonder CORS voor nu
+                        // Voor development: simuleer de backend response
+                        console.log('Simulating backend call for now due to CORS...');
+                        
+                        // Mock response die lijkt op echte backend output
+                        const mockBackendResponse = {
+                            fields: {
+                                focus_keyword: this.rawInput,
+                                product_type: 'inferred from: ' + this.rawInput,
+                                audience: 'AI-generated audience',
+                                buyer_vs_receiver: 'self',
+                                personalization: {
+                                    name: false,
+                                    date: false,
+                                    color: true,
+                                    size: false
+                                },
+                                style_trend: 'AI-inferred style',
+                                seasonal_context: 'year-round',
+                                retry_reason: 'backend_simulation_mode'
+                            },
+                            validationLog: {
+                                note: 'This is simulated data - real backend call blocked by CORS'
+                            }
+                        };
+                        
+                        // Simuleer network delay
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
+                        this.classifierOutput = mockBackendResponse;
+                        
+                        console.log('Simulated backend response:', mockBackendResponse);
+                        
+                    } catch (error) {
+                        console.error('Error calling backend:', error);
+                        alert('Error connecting to backend: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

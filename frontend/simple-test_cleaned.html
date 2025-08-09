@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Complete Etsy AI Tool</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    input, select, button { padding: 10px; margin: 5px 0; width: 100%; }
+    .section { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px; }
+    .tags span { display: inline-block; background: #e2e8f0; padding: 5px 10px; border-radius: 6px; margin: 3px; }
+    .json-box { background: #f8fafc; padding: 15px; border-radius: 6px; font-family: monospace; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>🎯 Etsy AI Tool Flow</h1>
+
+    <!-- Step 1: Input -->
+    <div class="section">
+      <h2>Step 1: Raw Input</h2>
+      <input v-model="rawInput" type="text" placeholder="Enter your product idea (e.g. egg cup)">
+      <button @click="handleConfirm" :disabled="loading">
+        {{ loading ? "⏳ Processing..." : "Confirm & Continue" }}
+      </button>
+    </div>
+
+    <!-- Step 2: Backend Classifier Output -->
+    <div v-if="confirmedData" class="section">
+      <h2>Step 2: Confirmed Pre-Run Data</h2>
+      <div class="json-box">{{ JSON.stringify(confirmedData, null, 2) }}</div>
+    </div>
+
+    <div v-if="classifierOutput" class="section">
+      <h2>Step 3: Backend Chaining Output</h2>
+      <div class="json-box">{{ JSON.stringify(classifierOutput, null, 2) }}</div>
+      <button
+        @click="runChaining(classifierOutput && classifierOutput.fields)"
+        :disabled="chainingLoading"
+      >
+        {{ chainingLoading ? "🧠 Generating..." : "✨ Generate Title, Tags & Description" }}
+      </button>
+    </div>
+
+    <!-- Step 4: Chaining Output -->
+    <div v-if="chainOutput" class="section">
+      <h2>🎉 Final Output</h2>
+      <div v-if="chainOutput && !chainOutput.retry_reason">
+        <div><strong>Title:</strong> {{ chainOutput.title }}</div>
+        <div><strong>Tags ({{ chainOutput.tags.length }}/13):</strong>
+          <div class="tags"><span v-for="tag in chainOutput.tags" :key="tag">{{ tag }}</span></div>
+        </div>
+        <div><strong>Description:</strong></div>
+        <div class="json-box">{{ chainOutput.description }}</div>
+      </div>
+      <div v-if="backendError" style="color: #b91c1c; margin: 10px 0;">
+        ⚠️ Waarschuwing: {{ backendError }}
+      </div>
+      <div v-if="chainOutput.tags && chainOutput.tags.length !== 13" style="color: #b91c1c; margin: 10px 0;">
+        ⚠️ Waarschuwing: Backend leverde {{ chainOutput.tags.length }} tags (verwacht: 13). Validator zal dit afkeuren.
+      </div>
+      <button @click="copyAll" :disabled="!canCopy()">📋 Copy All</button>
+      <button @click="downloadJson" :disabled="!canCopy()">💾 Download JSON</button>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    createApp({
+      data() {
+        return {
+          rawInput: "egg cup",
+          loading: false,
+          chainingLoading: false,
+          confirmedData: null,
+          classifierOutput: null,
+          chainOutput: null,
+          backendError: null
+        };
+      },
+      methods: {
+        async handleConfirm() {
+          this.loading = true;
+          this.confirmedData = {
+            raw_input: this.rawInput,
+            confirmed_by_user: true,
+            timestamp: new Date().toISOString()
+          };
+          try {
+            const response = await fetch('http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: this.rawInput,
+                uid: 'testuser123',
+                runId: 'frontend-run'
+              })
+            });
+            if (!response.ok) throw new Error('Backend error: ' + response.status);
+            const responseJson = await response.json();
+            this.classifierOutput = responseJson;
+            this.loading = false;
+            // Start chaining direct na backend-response
+            if (responseJson && responseJson.fields) {
+              this.runChaining(responseJson.fields);
+            } else {
+              alert('Backend gaf geen geldige fields terug.');
+            }
+          } catch (err) {
+            this.loading = false;
+            alert('Fout bij backend-call: ' + err.message);
+            console.error(err);
+          }
+        },
+        async runChaining(fields) {
+  this.chainingLoading = true;
+  // Hard reset UI to avoid ghost data from previous runs
+  this.chainOutput = null;
+  this.backendError = null;
+  try {
+    const resp = await fetch("http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateChainingFromFields", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fields }) // No fallback! Always explicit fields
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'backend_error' }));
+      this.backendError = err.retry_reason || err.error || 'backend_error';
+      this.chainOutput = null;
+      return;
+    }
+    const data = await resp.json();
+    this.chainOutput = data;
+    this.backendError = null;
+  } catch (e) {
+    this.backendError = "Chaining-backend error: " + (e.message || e);
+  } finally {
+    this.chainingLoading = false;
+  }
+},
+        copyAll() {
+          const all = {
+            title: this.chainOutput.title,
+            tags: this.chainOutput.tags,
+            description: this.chainOutput.description
+          };
+          const text = `TITLE:
+${all.title}
+
+TAGS:
+${all.tags.join(", ")}
+
+DESCRIPTION:
+${all.description}`;
+          navigator.clipboard.writeText(text);
+        },
+        downloadJson() {
+          const data = {
+            input: this.rawInput,
+            classifier: this.classifierOutput,
+            output: this.chainOutput,
+            timestamp: new Date().toISOString()
+          };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "etsy-listing-output.json";
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        canCopy() {
+        return (
+          this.chainOutput &&
+          Array.isArray(this.chainOutput.tags) &&
+          this.chainOutput.tags.length === 13
+        );
+      }
+    }
+    }).mount('#app');
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "scripts": {
+    "test": "cross-env FIRESTORE_EMULATOR_HOST=localhost:9081 jest --runInBand",
+    "test:ci": "npm run emulators:clean && npm test",
+    "emulators": "firebase emulators:start",
+    "emulators:clean": "taskkill /f /im node.exe /im java.exe 2>nul & firebase emulators:start --only functions,firestore"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "node-fetch": "^2.7.0",
+    "openai": "^5.10.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "jest": "^30.0.5"
+  }
+}

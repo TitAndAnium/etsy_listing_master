@@ -1,0 +1,81 @@
+#meta
+filename: audience_profile_rules.txt
+version: v1.0.0
+created: 2025-05-25
+updated: 2025-05-25
+type: rules
+context_required: true
+
+# audience_profile_rules.txt – Audience Intelligence Layer V1
+
+=== STRATEGIC ROLE ===
+This file defines tone, phrasing, keyword behavior, and copy-framing for specific audience profiles. These profiles reflect not just demographics, but intent, lifestyle, and psychographics. Prompts adapt to this logic automatically if audience_profile is set.
+
+---
+
+=== STRUCTURE PER PROFILE ===
+
+audience_profile: "youth_edgy"
+- Tone: casual, bold, short-form
+- Keywords: slang-tolerant, expressive phrases, trend-infused
+- Tags: “funny”, “weird”, “edgy gift”, “cool merch”
+- Notes: Emphasize individuality and irony. Avoid classic warmth.
+
+audience_profile: "midlife_women_classy"
+- Tone: elegant, emotionally intelligent, affirming
+- Keywords: “meaningful”, “timeless”, “understated beauty”
+- Tags: “gift for her”, “sentimental”, “classy”
+- Notes: Use refined language, avoid sarcasm or youth trends
+
+audience_profile: "mothers"
+- Tone: warm, gentle, reassuring, practical
+- Keywords: “memory”, “soft”, “keepsake”, “family”
+- Tags: “mom life”, “family gift”, “mother’s day”
+- Notes: Emphasize legacy, care, and usefulness
+
+audience_profile: "religious_youth"
+- Tone: hopeful, wholesome, values-based
+- Keywords: “faith”, “purpose”, “belonging”
+- Tags: “faith-based”, “christian gift”, “inspirational”
+- Notes: Avoid edgy tone, focus on community and lightness
+
+audience_profile: "older_men"
+- Tone: straight, no-frills, confident
+- Keywords: “bold”, “solid”, “reliable”
+- Tags: “gift for him”, “vintage”, “classic style”
+- Notes: Avoid hype or emotional embellishment
+
+audience_profile: "brides/bridesmaids"
+- Tone: celebratory, stylish, emotionally rich
+- Keywords: “matching”, “bridal party”, “cheers to”
+- Tags: “wedding”, “bridesmaid gift”, “bachelorette”
+- Notes: Emphasize group identity, occasion, and keepsake value
+
+audience_profile: "baby_gift_buyers"
+- Tone: soft, protective, memory-driven
+- Keywords: “baby’s first”, “personalized”, “milestone”
+- Tags: “baby shower”, “newborn gift”, “mom to be”
+- Notes: Focus on experience for parents/child. Avoid complexity.
+
+audience_profile: "pet_owners"
+- Tone: affectionate, humorous, breed-aware
+- Keywords: “fur baby”, “dog mom”, “meow”
+- Tags: “pet lover gift”, “dog dad”, “cat lady”
+- Notes: Match tone to animal personality type when known.
+
+audience_profile: "corporate_team_buyers"
+- Tone: friendly-formal, motivational, performance-aligned
+- Keywords: “team win”, “thank you”, “achievement”
+- Tags: “team gift”, “coworker”, “employee appreciation”
+- Notes: No slang. Professional yet human.
+
+---
+
+=== FALLBACK BEHAVIOR ===
+
+If no audience_profile is detected:
+- Default to neutral-friendly tone with gentle calls to action
+- Avoid overly specific tags or claims
+- Example tone: “A thoughtful option for any setting”
+
+RETURN NO TEXT – THIS FILE IS FOR STRATEGIC CONTEXT INJECTION ONLY.

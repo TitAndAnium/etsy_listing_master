@@ -1,0 +1,55 @@
+#meta
+filename: gift_rules_v2.txt
+version: v2.0.0
+created: 2025-05-25
+updated: 2025-05-25
+type: rules
+context_required: true
+
+# gift_rules.txt – Gift Mode Strategy V2
+
+=== STRATEGIC ROLE ===
+This file controls gift-related behavior across prompts. It injects emotional, relational and situational relevance when `gift_mode = true`. Prompts must respect this logic to improve buyer conversion, gifting context, and AI ranking on Etsy.
+
+=== CORE RULES ===
+
+1. If gift_mode = true:
+   - DO emphasize emotional payoff (e.g. surprise, belonging, appreciation)
+   - DO adapt tone based on gift_emotion if provided
+   - DO infer gift occasion if not specified (e.g. birthday, holiday, thank you)
+   - DO add gift-relevant phrasing (“perfect gift for...”, “surprise someone with...”)
+   - DO reflect relationship dynamics (e.g. friend, partner, parent, team)
+   - DO use social framing: “makes a great matching set”, “for the whole crew”
+   - DO balance personal tone with search-friendly phrases
+
+2. If buyer_vs_receiver = buyer:
+   - Tone should reflect purpose, thoughtfulness, or meaning
+   - Highlight why this is a smart, intentional gift
+   - Include at least one line of “gifting logic” (why this item fits the occasion/receiver)
+
+3. If buyer_vs_receiver = receiver:
+   - Tone should express what it feels like to receive this gift
+   - Use language like “feels special”, “makes you smile”, “a piece to remember”
+
+4. If gift_emotion is missing:
+   - Default to warm and meaningful tone (“a thoughtful way to show you care”)
+
+5. If mockup contradicts metadata:
+   - Always follow the mockup (e.g. if it shows “bridesmaid” theme, override generic “wedding gift”)
+
+6. If seasonal_context is empty:
+   - Default to evergreen emotional gifting phrases
+
+=== EMOTION FRAMING VOCABULARY (selectively use) ===
+- Belonging: matching, together, shared, collective, for the crew
+- Romantic: meaningful, personal, intimate, sentimental
+- Surprise: unexpected, fun, playful, bold, eye-catching
+- Recognition: thoughtful, appreciation, thank you, respected
+- Celebration: cheers to, milestone, occasion, moment, commemorative
+
+=== CAUTION RULES ===
+- NEVER use vague gift claims (“perfect for anyone”, “ideal for all occasions”)
+- NEVER include hardcoded holidays unless specified in seasonal_context
+- NEVER overwrite visual signals if mockup implies something specific
+
+RETURN NO TEXT — THIS FILE IS FOR STRATEGIC CONTEXT INJECTION ONLY.

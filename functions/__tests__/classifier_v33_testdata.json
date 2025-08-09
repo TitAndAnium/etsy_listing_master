@@ -1,0 +1,302 @@
+[
+  {
+    "name": "Simple gift for mom",
+    "rawText": "Funny mug for mom – Mother's Day gift",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["mom"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Composite audience - mom and dad",
+    "rawText": "Funny mug for mom and dad – Mother's Day or Father's Day gift",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["mom", "dad"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Multiple audiences - bride and groom",
+    "rawText": "Wedding ring box for bride and groom - perfect wedding gift",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["bride", "groom"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "No gift intent - regular product",
+    "rawText": "Handmade wooden ring box for jewelry storage",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["jewelry lover"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Gift signals - birthday",
+    "rawText": "Custom photo frame - perfect birthday present for friends",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["friends"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Gift signals - christmas",
+    "rawText": "Cozy winter scarf - Christmas gift for her",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["women"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Composite - dog moms and dads",
+    "rawText": "Dog training treats for dog moms and dads who love their pets",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["dog owners", "pet parents"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Anniversary gift",
+    "rawText": "Personalized couple keychain - anniversary gift for husband and wife",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["couples", "married couples"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Bridal shower gift",
+    "rawText": "Kitchen utensil set - bridal shower gift for new brides",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["brides"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "No clear audience",
+    "rawText": "Generic wooden spoon for cooking",
+    "expect": {
+      "gift_mode": false,
+      "audience": [],
+      "fallback_profile": "cooking enthusiasts",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Multiple gift signals",
+    "rawText": "Handmade jewelry box - perfect gift for birthday, christmas, or anniversary",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["women", "jewelry lovers"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "For him gift",
+    "rawText": "Leather wallet for him - great gift for any occasion",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["men"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Complex composite - vegans and keto",
+    "rawText": "Protein powder for vegans and keto dieters who want healthy nutrition",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["vegans", "keto dieters"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Kids and parents composite",
+    "rawText": "Educational toy for kids and parents to play together",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["kids", "parents"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Present signal",
+    "rawText": "Custom mug with photo - unique present for coffee lovers",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["coffee lovers"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Toddler and mom composite",
+    "rawText": "Soft toy for toddlers and moms who want safe playtime",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["toddlers", "moms"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Teacher gift",
+    "rawText": "Thank you card set - gift for teachers at end of school year",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["teachers"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Grandparents gift",
+    "rawText": "Photo album for grandparents - perfect gift to store memories",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["grandparents"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "No audience fallback",
+    "rawText": "Random craft supplies for various projects",
+    "expect": {
+      "gift_mode": false,
+      "audience": [],
+      "fallback_profile": "crafters",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Pet owners",
+    "rawText": "Dog leash for pet owners who walk their dogs daily",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["pet owners", "dog owners"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Gamers gift",
+    "rawText": "Gaming mouse pad - great gift for gamers and streamers",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["gamers", "streamers"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Fitness enthusiasts",
+    "rawText": "Yoga mat for fitness enthusiasts and yoga practitioners",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["fitness enthusiasts", "yoga practitioners"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Book lovers gift",
+    "rawText": "Bookmark set - perfect gift for book lovers and readers",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["book lovers", "readers"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Artists and crafters",
+    "rawText": "Paint brush set for artists and crafters who create beautiful art",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["artists", "crafters"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Minimal input",
+    "rawText": "mug",
+    "expect": {
+      "gift_mode": false,
+      "audience": [],
+      "fallback_profile": "general consumers",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Wedding gift complex",
+    "rawText": "Personalized cutting board for newlyweds - wedding gift for couples starting new life",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["newlyweds", "couples"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Teens and young adults",
+    "rawText": "Phone case for teens and young adults who love trendy accessories",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["teens", "young adults"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Housewarming gift",
+    "rawText": "Candle set - housewarming gift for new homeowners",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["homeowners"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Gardeners composite",
+    "rawText": "Plant pot for gardeners and plant lovers who grow herbs",
+    "expect": {
+      "gift_mode": false,
+      "audience": ["gardeners", "plant lovers"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  },
+  {
+    "name": "Office workers gift",
+    "rawText": "Desk organizer - great gift for office workers and remote employees",
+    "expect": {
+      "gift_mode": true,
+      "audience": ["office workers", "remote employees"],
+      "fallback_profile": "",
+      "retry_reason": ""
+    }
+  }
+]

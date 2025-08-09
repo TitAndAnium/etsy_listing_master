@@ -1,0 +1,83 @@
+############################
+#  General
+############################
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs
+logs/**/*.log
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug*.log
+firestore-debug.log
+
+# Runtime data / pids
+pids
+*.pid
+*.seed
+*.pid.lock
+
+############################
+#  Node / NPM / Yarn / PNPM
+############################
+node_modules/
+.npm
+.pnpm-debug.log*
+.yarn-integrity
+*.tgz
+.lock-wscript
+
+############################
+#  Testing & Coverage
+############################
+coverage/
+.nyc_output
+lib-cov
+
+############################
+#  Firebase
+############################
+.firebase/
+.firebaserc
+.runtimeconfig.json
+.functions-cache/
+
+############################
+#  Environment variables
+############################
+.env
+functions/.env
+
+############################
+#  Build output
+############################
+build/
+dist/
+.next/
+frontend/dist/
+frontend/.next/
+
+############################
+#  Tooling directories
+############################
+.grunt/
+bower_components/
+.vscode/
+.idea/
+
+############################
+#  Project-specific
+############################
+*.zip
+hs_err_pid*.log
+mock_*.json
+test_*.json
+prompt_*_analysis_results.json
+analyze_*.js
+overdrachtsprompt.txt
+stappen.txt
+cascade*.txt
+.dataconnect

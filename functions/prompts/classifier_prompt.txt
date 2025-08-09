@@ -1,0 +1,54 @@
+# LAST MODIFIED: 2025-08-06 - Handmade-flex implementation (F1.3.4)
+# COMMIT: Added allow_handmade boolean field to output schema
+# AUTHOR: Cascade (Windsurf)
+::VERSION:: v3.4
+
+::STRUCTURE::
+- ASCII-only
+- Output must be JSON object with consistent keys
+- No explanation, markdown, or natural language
+- Use strict classification schema
+
+::INPUT::
+<<RAW_INPUT>>
+
+::CONTEXT::
+- No prior context is passed; inference must rely solely on RAW_INPUT
+- If keywords conflict, prioritize gifting intent and emotional tone over generic product terms
+
+::CONSTRAINTS::
+- Max 50 tokens per field
+- All fields must be returned, even if inferred as null
+- Only use lowercase for values unless explicitly style_name
+- All strings ASCII-only, no emojis or special characters
+
+::GOAL::
+Return a JSON object with Etsy-relevant classification fields that can be chained into the title, tag and description prompts. Must be semantically rich, infer gifting context, and identify emotional tone + recipient type.
+
+Set "allow_handmade": true if RAW_INPUT contains words like "handmade", "hand-made", "hand made", "handcrafted", "hand crafted", or similar artisan/craft terminology that indicates genuine handmade products.
+
+::TRANSFER::
+The output must contain semantically chainable fields for all following prompts (e.g. [FOCUS_KEYWORD], [PRODUCT_TYPE], [GIFT_MODE], etc). Use the most specific and emotionally relevant terms.
+
+::OUTPUT::
+Respond only with valid JSON:
+
+{
+  "focus_keyword": "...",
+  "product_type": "...",
+  "gift_mode": true,
+  "gift_emotion": "...",
+  "buyer_vs_receiver": "...",
+  "tone_style": "...",
+  "style_trend": "...",
+  "seasonal_context": "...",
+  "audience_profile": "...",
+  "mockup_style": "...",
+  "mockup_mood": "...",
+  "mockup_color": "...",
+  "audience": ["women", "gift-buyers"],
+  "fallback_profile": "general",
+  "allow_handmade": false,
+  "retry_reason": "none",
+  "etsy_rules": true
+}

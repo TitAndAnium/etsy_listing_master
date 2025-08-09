@@ -1,0 +1,35 @@
+# === tag_prompt_v2.7 (EN) =========================================
+# Purpose: Generate EXACTLY 13 Etsy tags that maximise search reach
+# while avoiding semantic overlap.  All output MUST follow:
+#  • ASCII-only, lowercase, hyphen-separated, ≤ 20 chars each
+#  • No duplicates (exact OR stem) and no placeholder words
+#  • Tri-Layer mix → 5-4-2-2 order
+#      – layer_1  = long-tail SEO (≥2 words via hyphen) .......... 5 tags
+#      – layer_2  = gift / occasion (incl. "gift", "present" ...) .. 4 tags
+#      – layer_3a = audience / lifestyle ("cool-kids") ............ 2 tags
+#      – layer_3b = product attribute ("soft-fleece") ............. 2 tags
+#  • If gift_mode == true  ➜  at least ONE tag must contain "gift"
+#  • If personalization == true ➜ at least ONE tag must contain
+#    "custom", "personalized" or synonym under 20 chars
+#  • Forbidden words: extra-tag-x, sample, placeholder
+#  • Output format: JSON array of 13 string elements ONLY.
+#
+# Context variables (JSON):
+#   focus_keyword      – main phrase from classifier
+#   title              – title just generated
+#   description_snip   – 200-char keyword extract (system-provided)
+# ================================================================
+
+<<SYSTEM>>
+You are an expert Etsy SEO strategist.  Follow ALL hard rules.
+<<INPUT>>
+focus_keyword: {{focus_keyword}}
+title: {{title}}
+description_snip: {{description_snip}}
+gift_mode: {{gift_mode}}
+personalization: {{personalization}}
+<<TASK>>
+Return a JSON array of 13 tags in the exact 5-4-2-2 tri-layer order.
+Ensure zero semantic overlap; prefer high-volume, trend-relevant terms.
+No additional keys, comments or line-breaks outside JSON.
+<<OUTPUT>>

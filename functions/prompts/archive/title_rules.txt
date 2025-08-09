@@ -1,0 +1,57 @@
+#meta
+filename: title_rules.txt
+version: v2.0.0
+created: 2025-05-25
+updated: 2025-05-25
+type: rules
+context_required: true
+
+# Etsy AI-Hacker – Title Generation Rules
+
+This file defines the output format, character rules, tone logic and SEO strategy for Etsy titles. Titles are essential for visibility, click-through rate, and Etsy search indexing. Prompt output must comply fully.
+
+[TITLE FORMAT]
+- Max 140 characters (including spaces and punctuation).
+- ASCII-only: no emoji, special symbols, smart quotes, or markdown.
+- One single title line, no line breaks.
+- No trailing punctuation such as periods (.), exclamation marks (!), colons (:), or quotation marks (").
+- No price-like patterns: no $12, 3.99, 2–4, etc.
+- No quotation marks or ALL CAPS phrases.
+- No ALL CAPS phrases allowed. Only a single word may be in ALL CAPS, and only if visually or contextually justified (e.g. BRIDE).
+- Numbers are allowed only when contextually essential (e.g. “set of 3”), but may never be used as the first word of the title.
+
+[KEYWORD STRATEGY]
+- The **focus keyword must appear within the first 5 words** of the title.
+- Titles must reflect actual buyer search behavior.
+- Do not include synonym stacking: e.g. “shirt, tee, t-shirt” → reject.
+- Use only one product term variation per title.
+- Avoid vague adjectives or hype language: “awesome”, “best”, “perfect”.
+- Do not include brand names or shop names unless required by Etsy category policy or user-provided input.
+
+[TONE & INTENT]
+- Titles must align with the product’s emotional and visual tone.
+- Humor, irony or bold phrasing is allowed when supported by the product design, niche or cultural expectations (e.g. sarcastic shirts, novelty gifts).
+- Titles must be buyer-facing, not seller-oriented (“Great for your store” = reject).
+- Personalization must be mentioned within the first 7 words if personalization = true.
+- Gift-intent must be implied when Gift Mode is active (e.g. “custom gift”, “anniversary sweater”).
+- Tone must match the listing as a whole — avoid inconsistencies with tags or description tone.
+
+[VISUAL ALIGNMENT]
+- Image is the primary source of truth.
+- If image and metadata conflict, override input with the visible product identity.
+- Tone, keyword and structure must follow the visual style: minimal, bold, romantic, edgy, etc.
+
+[CONFLICT RULES]
+- If tone intent is unclear, match the tone to the product’s visual identity or the most dominant audience signal.
+- Do not default to a “neutral” title out of uncertainty if visual or contextual indicators suggest bold, humorous or niche tone.
+
+[VALIDATION RULES]
+- Title output must be rejected if:
+  - Exceeds 140 characters
+  - Contains illegal characters or emoji
+  - Repeats terms or violates stacking rules
+  - Lacks focus keyword in first 5 words
+- Retry logic triggers if:
+  - Title is empty, invalid, or does not pass length and keyword checks
+
+#end

@@ -1,0 +1,15 @@
+::RULES_VERSION:: v1.0
+
+# Title Rules for Etsy AI-Hacker
+# Basic validation rules for title generation
+
+# Character limits
+MAX_LENGTH: 140
+MIN_LENGTH: 10
+
+# Forbidden terms
+FORBIDDEN_WORDS: spam, fake, replica, counterfeit
+
+# Required elements
+REQUIRE_KEYWORD: true
+REQUIRE_DESCRIPTIVE: true

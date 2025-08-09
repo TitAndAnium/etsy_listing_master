@@ -1,0 +1,54 @@
+#meta
+filename: tag_rules.txt
+version: v2.0.0
+created: 2025-05-25
+updated: 2025-05-25
+type: rules
+context_required: true
+
+# Etsy AI-Hacker – Tag Generation Rules
+
+These rules define the exact structure, semantics, and tone-aware strategy for Etsy tag output. Tags are used in downstream validation and Etsy search performance, and must comply fully.
+
+[TAG FORMAT]
+- Return exactly 13 tags.
+- All tags must be comma-separated, lowercase, and ASCII-only.
+- Each tag must be ≤ 20 characters, including spaces.
+- Output must be a single line of text with 13 comma-separated values and no line breaks.
+- No punctuation allowed: no periods (.), colons (:), semicolons (;), dashes (-), or other symbols.
+- Commas are only allowed as separators between tags.
+- No quotation marks, markdown, or code formatting.
+- Tag order is not important unless specified by downstream logic.
+
+[TAG UNIQUENESS]
+- Do not include duplicate terms, near-synonyms, or spelling variants.
+- Avoid overlap with category names or the title if already present.
+- Do not include multiple forms of a product type (e.g. shirt, tee, tshirt).
+- Tags must reflect **buyer search language**, not seller terminology.
+
+[TAG STRATEGY]
+- Combine long-tail and short-tail terms to maximize reach.
+- Include usage-based tags where contextually accurate:
+  Examples: “travel gift”, “funny print”, “kitchen storage”
+- Add tags like “with name”, “custom gift” only if personalization = true.
+- Subculture or seasonal tags (e.g. “goth”, “valentines gift”) only when confirmed visually or contextually.
+- Use lifestyle, function, or recipient-based tags for evergreen listings:
+  Examples: “boho decor”, “for her”, “minimalist wall print”
+- Tags must align tonally with the product. Do not use hype terms or sentiment-based tags (e.g. “emotional gift”, “adorable surprise”) unless justified by product tone or mockup.
+- Humor, sarcasm, or edgy phrases may be used as tags if they appear on the product or are clearly part of the niche (e.g. “fuck off mug”, “delulu tote”).
+
+[REGIONAL USAGE]
+- US spelling is mandatory for US-targeted listings:
+  - Use “mom” not “mum”
+  - Use “favorite” not “favourite”
+  - Use “gray” not “grey”
+
+[VALIDATION LOGIC]
+- Tag output must be rejected if:
+  - Fewer than 13 tags are returned
+  - One or more tags exceed 20 characters
+  - Duplicate tags are present
+  - Any invalid characters are used
+- Retry logic must trigger automatically if any of the above conditions are met or if fallback mode is active.
+
+#end
