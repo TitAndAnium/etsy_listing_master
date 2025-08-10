@@ -2724,3 +2724,41 @@ Logboek is **niet audit-proof** vanwege inconsistenties en technische issues nog
 
 **Actiehouder:** Cascade  
 **Volgende Fase:** Systematisch oplossen van 4 audit issues voordat F1.4
+
+## 2025-08-10 – Backend fix & E2E green
+
+* Fixed HTTP 422 by correct JSON POST via PowerShell (`Invoke-RestMethod`).
+* Verified Cloud Function returns 200 OK.
+* All Firebase emulators + Vite dev-server running.
+* Cypress headless: 4/4 passing ([handmade-flex-e2e.cy.js](cci:7://file:///g:/Dev/onebox-hacker/frontend/cypress/e2e/handmade-flex-e2e.cy.js:0:0-0:0)).
+* git secret scan → “No matches” (repo clean).
+
+## 2025-08-10 – Backend 422 opgelost & E2E groen
+
+**Context**
+- Lokale omgeving: Node v20.14.0, npm 10.7.0, Git 2.50.1
+- Frontend via Vite op `http://localhost:5173/`
+- Firebase emulators actief (Functions/Firestore/Hosting)
+
+**Root cause 422**
+- PowerShell stuurde ongeldige JSON door quoting/escaping.
+- Oplossing: `Invoke-RestMethod` gebruikt met een PowerShell object → `ConvertTo-Json`.
+
+**Gezondheidscheck backend**
+```powershell
+$body = @{ text = "artisan silver jewelry for women"; allow_handmade = $true } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "http://localhost:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump" -ContentType "application/json" -Body $body
+```
+→ HTTP 200 met `fields` + `validation`. Logging naar Firestore OK.
+
+**E2E (Cypress headless)**
+- Spec: `frontend/cypress/e2e/handmade-flex-e2e.cy.js`
+- Resultaat: **4/4 passing**, ~1m20s
+
+**Repo hygiëne**
+- Secret-scan: **No matches** (geen secrets in Git-history)
+- Nieuw: `functions/.env.example` toegevoegd; echte `functions/.env` blijft lokaal, niet committen.
+
+**Volgende acties**
+- CI job (Cypress + secret-scan) toevoegen.
+- Eventueel `functions/.env.example` verder annoteren wanneer config groeit.
