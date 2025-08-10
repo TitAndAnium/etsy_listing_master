@@ -41,7 +41,8 @@ jobs:
       timeout-minutes: 25
       needs: secret-scan
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        MOCK_LLM: "1"
+        OPENAI_API_KEY: "dummy"
   
       steps:
         - uses: actions/checkout@v4

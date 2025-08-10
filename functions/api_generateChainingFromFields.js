@@ -1,18 +1,39 @@
 const functions = require("firebase-functions");
-const { OpenAI } = require("openai");
-const openai = new OpenAI();
+// ---------------------------------------------------------------------------
+// OpenAI client with CI-safe mock
+// ---------------------------------------------------------------------------
 const fs = require("fs");
 
-const MAX_TRIES = 2;
+const IS_CI = process.env.CI === "true" || process.env.MOCK_LLM === "1";
+let openaiClient = null;
+
+function getOpenAI() {
+  if (IS_CI) return null; // skip in CI
+  if (!openaiClient) {
+    const { OpenAI } = require("openai");
+    const key = process.env.OPENAI_API_KEY || "";
+    if (!key) return null; // fallback to mock
+    openaiClient = new OpenAI({ apiKey: key });
+  }
+  return openaiClient;
+}
 
 async function callOpenAI(messages) {
-  return openai.chat.completions.create({
+  const client = getOpenAI();
+  if (!client) {
+    // 🔹 CI/mock mode: return deterministic dummy with 13 tags
+    const dummy = { tags: Array.from({ length: 13 }, (_, i) => `tag${i + 1}`) };
+    return { choices: [{ message: { content: JSON.stringify(dummy) } }] };
+  }
+  return client.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0.4,
     response_format: { type: "json_object" },
     messages,
   });
 }
+
+const MAX_TRIES = 2;
 
 module.exports = async (req, res) => {
   try {
