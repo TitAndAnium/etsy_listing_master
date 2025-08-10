@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan repo for common secrets
+        run: |
+          set -e
+          PATTERN='AIzaSy|sk_(live|test)|ghp_[A-Za-z0-9]{36,}|xox[baprs]-|-----BEGIN [A-Z ]+PRIVATE KEY-----|service[-_ ]?account|GOOGLE_APPLICATION_CREDENTIALS'
+          if git grep -nI -E "$PATTERN" | tee secret_hits.txt; then
+            echo "::error::Potential secrets found (see secret_hits.txt)."
+            exit 1
+          else
+            echo "No matches"
+          fi
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-scan-artifacts
+          path: secret_hits.txt
+          if-no-files-found: ignore
+
+  e2e:
+    name: E2E (emulators + Cypress)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: secret-scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install global tools
+        run: npm i -g firebase-tools@latest wait-on
+
+      - name: Install deps (root/functions/frontend)
+        run: |
+          npm ci
+          cd functions && npm ci && cd ..
+          cd frontend && npm ci && cd ..
+
+      - name: Start Firebase emulators
+        run: |
+          firebase emulators:start --only functions,firestore > emulators.log 2>&1 &
+          echo $! > emu.pid
+
+      - name: Start Vite dev server
+        working-directory: frontend
+        run: |
+          npm run dev:ci > ../vite.log 2>&1 &
+          echo $! > ../vite.pid
+
+      - name: Wait for dev server
+        run: npx wait-on http://127.0.0.1:5173
+
+      - name: Run Cypress headless
+        working-directory: frontend
+        run: npm run test:e2e:ci
+
+      - name: Upload artifacts (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-and-logs
+          path: |
+            frontend/cypress/screenshots
+            frontend/cypress/videos
+            vite.log
+            emulators.log
+          if-no-files-found: ignore
+
+      - name: Cleanup (always)
+        if: always()
+        run: |
+          kill $(cat emu.pid) 2>/dev/null || true
+          kill $(cat vite.pid) 2>/dev/null || true
