@@ -35,7 +35,7 @@ jobs:
           path: secret_hits.txt
           if-no-files-found: ignore
 
-    e2e:
+  e2e:
       name: E2E (emulators + Cypress)
       runs-on: ubuntu-latest
       timeout-minutes: 25
