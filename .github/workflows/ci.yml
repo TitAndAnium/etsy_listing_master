@@ -10,17 +10,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Scan repo for common secrets
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
           PATTERN='AIzaSy|sk_(live|test)|ghp_[A-Za-z0-9]{36,}|xox[baprs]-|-----BEGIN [A-Z ]+PRIVATE KEY-----|service[-_ ]?account|GOOGLE_APPLICATION_CREDENTIALS'
-          # Exclude this workflow file itself from the scan to avoid self-match
-          if git grep -nI -E "$PATTERN" -- ':!/.github/workflows/ci.yml' | tee secret_hits.txt; then
+
+          # Scan alle getrackte files, maar sluit deze workflow zelf uit
+          git grep -nI -E "$PATTERN" -- . ':(exclude).github/workflows/ci.yml' > secret_hits.txt || true
+
+          if [ -s secret_hits.txt ]; then
             echo "::error::Potential secrets found (see secret_hits.txt)."
+            cat secret_hits.txt
             exit 1
           else
-            echo "No matches"
+            echo "No secrets detected."
           fi
+
       - if: always()
         uses: actions/upload-artifact@v4
         with:
