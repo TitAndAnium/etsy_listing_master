@@ -66,15 +66,17 @@ jobs:
       - name: Start Vite dev server
         working-directory: frontend
         run: |
-          npm run dev:ci > ../vite.log 2>&1 &
+          set -e
+          npm run dev -- --port 5173 --strictPort > ../vite.log 2>&1 &
           echo $! > ../vite.pid
 
-      - name: Wait for dev server
-        run: npx wait-on http://127.0.0.1:5173
+      - name: Wait for dev server (10 min timeout)
+        run: |
+          npx wait-on --timeout 600000 http://127.0.0.1:5173 || (echo "::error::Vite failed to start"; tail -n +1 vite.log emulators.log; exit 1)
 
       - name: Run Cypress headless
         working-directory: frontend
-        run: npm run test:e2e:ci
+        run: npm run test:e2e
 
       - name: Upload artifacts (always)
         if: always()
