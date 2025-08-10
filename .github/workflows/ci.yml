@@ -40,6 +40,8 @@ jobs:
       runs-on: ubuntu-latest
       timeout-minutes: 25
       needs: secret-scan
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   
       steps:
         - uses: actions/checkout@v4
