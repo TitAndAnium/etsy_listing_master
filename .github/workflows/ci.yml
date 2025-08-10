@@ -14,7 +14,8 @@ jobs:
         run: |
           set -e
           PATTERN='AIzaSy|sk_(live|test)|ghp_[A-Za-z0-9]{36,}|xox[baprs]-|-----BEGIN [A-Z ]+PRIVATE KEY-----|service[-_ ]?account|GOOGLE_APPLICATION_CREDENTIALS'
-          if git grep -nI -E "$PATTERN" | tee secret_hits.txt; then
+          # Exclude this workflow file itself from the scan to avoid self-match
+          if git grep -nI -E "$PATTERN" -- ':!/.github/workflows/ci.yml' | tee secret_hits.txt; then
             echo "::error::Potential secrets found (see secret_hits.txt)."
             exit 1
           else
