@@ -35,63 +35,71 @@ jobs:
           path: secret_hits.txt
           if-no-files-found: ignore
 
-  e2e:
-    name: E2E (emulators + Cypress)
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    needs: secret-scan
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install global tools
-        run: npm i -g firebase-tools@latest wait-on
-
-      - name: Install deps (root/functions/frontend)
-        run: |
-          npm ci
-          cd functions && npm ci && cd ..
-          cd frontend && npm ci && cd ..
-
-      - name: Start Firebase emulators
-        run: |
-          firebase emulators:start --only functions,firestore > emulators.log 2>&1 &
-          echo $! > emu.pid
-
-      - name: Start Vite dev server
-        working-directory: frontend
-        run: |
-          set -e
-          npm run dev -- --port 5173 --strictPort > ../vite.log 2>&1 &
-          echo $! > ../vite.pid
-
-      - name: Wait for dev server (10 min timeout)
-        run: |
-          npx wait-on --timeout 600000 http://127.0.0.1:5173 || (echo "::error::Vite failed to start"; tail -n +1 vite.log emulators.log; exit 1)
-
-      - name: Run Cypress headless
-        working-directory: frontend
-        run: npm run test:e2e
-
-      - name: Upload artifacts (always)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cypress-and-logs
-          path: |
-            frontend/cypress/screenshots
-            frontend/cypress/videos
-            vite.log
-            emulators.log
-          if-no-files-found: ignore
-
-      - name: Cleanup (always)
-        if: always()
-        run: |
-          kill $(cat emu.pid) 2>/dev/null || true
-          kill $(cat vite.pid) 2>/dev/null || true
+    e2e:
+      name: E2E (emulators + Cypress)
+      runs-on: ubuntu-latest
+      timeout-minutes: 25
+      needs: secret-scan
+  
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with:
+            node-version: '20'
+            cache: 'npm'
+  
+        - name: Install global tools
+          run: npm i -g firebase-tools@latest wait-on
+  
+        - name: Install deps (root/functions/frontend)
+          run: |
+            npm ci
+            cd functions && npm ci && cd ..
+            cd frontend && npm ci && cd ..
+  
+        # ⬇️ Belangrijk: project-id meegeven en wachten op de functies-poort
+        - name: Start Firebase emulators
+          run: |
+            set -e
+            firebase emulators:start --project etsy-ai-hacker --only functions,firestore > emulators.log 2>&1 &
+            echo $! > emu.pid
+            npx wait-on -t 120000 tcp:127.0.0.1:5001
+  
+        # ⬇️ Start Vite via npm script en wacht op TCP-poort
+        - name: Start Vite dev server
+          working-directory: frontend
+          run: |
+            npm run dev -- --port 5173 --strictPort > ../vite.log 2>&1 &
+            echo $! > ../vite.pid
+  
+        - name: Wait for dev server (3 min timeout)
+          run: npx wait-on -t 180000 tcp:127.0.0.1:5173
+  
+        - name: Run Cypress headless
+          working-directory: frontend
+          run: npm run test:e2e
+  
+        - name: Dump logs on failure
+          if: failure()
+          run: |
+            echo "===== vite.log ====="; tail -n +1 vite.log || true
+            echo "===== emulators.log ====="; tail -n +1 emulators.log || true
+  
+        - name: Upload artifacts (always)
+          if: always()
+          uses: actions/upload-artifact@v4
+          with:
+            name: cypress-and-logs
+            path: |
+              frontend/cypress/screenshots
+              frontend/cypress/videos
+              vite.log
+              emulators.log
+            if-no-files-found: ignore
+  
+        - name: Cleanup (always)
+          if: always()
+          run: |
+            kill $(cat emu.pid) 2>/dev/null || true
+            kill $(cat vite.pid) 2>/dev/null || true
+  
