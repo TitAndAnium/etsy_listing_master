@@ -42,7 +42,13 @@ module.exports = async (req, res) => {
     if (!fields) return res.status(400).send("fields missing");
     console.log('INCOMING FIELDS', fields);
 
-    const prompt = fs.readFileSync(__dirname + "/prompts/chaining_prompt_v3.3.3.txt", "utf8");
+    let prompt;
+    try {
+      prompt = fs.readFileSync(__dirname + "/prompts/chaining_prompt_v3.3.3.txt", "utf8");
+    } catch {
+      // fallback for CI where file lives in archive/
+      prompt = fs.readFileSync(__dirname + "/prompts/archive/chaining_prompt_v3.3.3.txt", "utf8");
+    }
 
     const sys = { role: "system", content: prompt };
     const usr = { role: "user", content: JSON.stringify({ fields }) };
