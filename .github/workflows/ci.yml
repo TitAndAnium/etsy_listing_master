@@ -69,12 +69,16 @@ jobs:
       - name: Start Vite dev server
         working-directory: frontend
         run: |
-          npm run dev -- --port 5173 --strictPort > ../vite.log 2>&1 &
+          # Bind explicitly to 127.0.0.1 so wait-on can reach it
+          nohup npm run dev -- --host 127.0.0.1 --port 5173 --strictPort > ../vite.log 2>&1 &
           echo $! > ../vite.pid
-
+  
       - name: Wait for dev server
-        run: npx wait-on --timeout 600000 http://127.0.0.1:5173
-
+        run: |
+          # Wait on TCP and HTTP; dump logs if it times out
+          npx wait-on --timeout 180000 "tcp:127.0.0.1:5173" "http-get://127.0.0.1:5173" \
+            || (echo "::error::Vite failed to start"; tail -n +1 vite.log emulators.log || true; exit 1)
+  
       - name: Smoke ping (fail fast)
         run: |
           URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
