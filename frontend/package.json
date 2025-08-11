@@ -9,7 +9,7 @@
     "cy:open": "cypress open",
     "cy:run": "start-server-and-test dev http://localhost:5173 cy:run:headless",
     "cy:run:headless": "cypress run",
-    "dev:ci": "vite --port 5173 --strictPort",
+    "dev:ci": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "test:e2e:ci": "cypress run --headless --browser electron --spec cypress/e2e/handmade-flex-e2e.cy.js",
     "test:e2e": "cypress run --spec cypress/e2e/handmade-flex-e2e.cy.js"
   },

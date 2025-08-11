@@ -71,24 +71,37 @@ jobs:
         run: |
           npm run dev:ci > ../vite.log 2>&1 &
           echo $! > ../vite.pid
-  
-      - name: Wait for dev server
+          # even check of het proces bestaat
+          sleep 1
+          if ! kill -0 $(cat ../vite.pid) 2>/dev/null; then
+            echo "::error::Vite process exited immediately"
+            tail -n +200 ../vite.log || true
+            exit 1
+          fi
+    
+      - name: Wait for dev server (with diagnostics)
         run: |
-          for i in {1..120}; do
+          for i in {1..180}; do
             if curl -sSf http://127.0.0.1:5173 >/dev/null; then
               echo "Vite is up"; exit 0
             fi
+            # stopte Vite?
             if ! kill -0 $(cat vite.pid) 2>/dev/null; then
-              echo "::error::Vite died early"
+              echo "::error::Vite died while waiting"
               tail -n +1 vite.log || true
+              # poorten/procs debug
+              command -v ss >/dev/null && ss -lntp || true
+              ps -ef | grep -i vite | grep -v grep || true
               exit 1
             fi
             sleep 1
           done
           echo "::error::Vite failed to respond in time"
           tail -n +1 vite.log emulators.log || true
+          command -v ss >/dev/null && ss -lntp || true
+          ps -ef | grep -i vite | grep -v grep || true
           exit 1
-          
+                  
       - name: Smoke ping (fail fast)
         run: |
           URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
