@@ -102,22 +102,27 @@ jobs:
           ps -ef | grep -i vite | grep -v grep || true
           exit 1
                   
-      - name: Smoke ping (fail fast)
+      - name: Wait for Functions emulator (tcp:5001)
+        run: npx wait-on --timeout 600000 tcp:127.0.0.1:5001
+    
+      - name: Smoke ping (fail fast with diagnostics)
         run: |
           URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
-          CODE=$(curl -s -o resp.json -w "%{http_code}" -H "Content-Type: application/json" \
-                 -d '{"text":"smoke test","allow_handmade":true}' "$URL")
+          CODE=$( (curl -s -o resp.json -w "%{http_code}" -H "Content-Type: application/json" \
+                  -d '{"text":"smoke test","allow_handmade":true}' "$URL") || echo "000" )
           echo "HTTP $CODE"
           if [ "$CODE" != "200" ] && [ "$CODE" != "422" ]; then
             echo "::error::Backend returned $CODE on smoke ping"
             tail -n +1 vite.log emulators.log || true
             cat resp.json || true
+            command -v ss >/dev/null && ss -lntp || true
+            ps -ef | grep -i -E 'vite|firebase|node|java' | grep -v grep || true
             exit 1
           fi
-
+        
       - name: Run Cypress headless
         working-directory: frontend
-        run: npm run test:e2e
+        run: npm run test:e2e:ci
 
       - name: Upload artifacts (always)
         if: always()
