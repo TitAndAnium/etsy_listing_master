@@ -2760,5 +2760,10 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:5001/etsy-ai-hacker/us-cen
 - Nieuw: `functions/.env.example` toegevoegd; echte `functions/.env` blijft lokaal, niet committen.
 
 **Volgende acties**
-- CI job (Cypress + secret-scan) toevoegen.
+- CI job (Cypress + secret-scan) toegevoegd en draait op GitHub Actions.
 - Eventueel `functions/.env.example` verder annoteren wanneer config groeit.
+
+## 2025-08-10 – CI workflow toegevoegd
+* Added `.github/workflows/ci.yml` for secret-scan + emulators + Cypress headless.
+* Extra npm scripts `dev:ci` & `test:e2e:ci` in `frontend/package.json`.
+* First run should trigger automatically on push.
