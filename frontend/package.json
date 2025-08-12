@@ -6,6 +6,7 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
+    "preview:ci": "vite preview --host 127.0.0.1 --port 5173 --strictPort",
     "cy:open": "cypress open",
     "cy:run": "start-server-and-test dev http://localhost:5173 cy:run:headless",
     "cy:run:headless": "cypress run",

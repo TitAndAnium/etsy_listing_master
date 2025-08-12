@@ -66,12 +66,44 @@ jobs:
           firebase emulators:start --only functions,firestore --project etsy-ai-hacker > emulators.log 2>&1 &
           echo $! > emu.pid
 
-      - name: Start Vite dev server
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start Vite preview (stable)
         working-directory: frontend
         run: |
-          npm run dev:ci > ../vite.log 2>&1 &
+          npm run preview:ci > ../vite.log 2>&1 &
           echo $! > ../vite.pid
-          # even check of het proces bestaat
+          sleep 1
+          if ! kill -0 $(cat ../vite.pid) 2>/dev/null; then
+            echo "::error::Vite preview exited immediately"
+            tail -n +200 ../vite.log || true
+            exit 1
+          fi
+
+      - name: Wait for preview (with diagnostics)
+        run: |
+          for i in {1..180}; do
+            if curl -sSf http://127.0.0.1:5173 >/dev/null; then
+              echo "Vite preview is up"; exit 0
+            fi
+            if ! kill -0 $(cat vite.pid) 2>/dev/null; then
+              echo "::error::Vite preview died while waiting"
+              tail -n +1 vite.log || true
+              command -v ss >/dev/null && ss -lntp || true
+              ps -ef | grep -i -E 'vite|node' | grep -v grep || true
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::Vite preview failed to respond in time"
+          tail -n +1 vite.log emulators.log || true
+          command -v ss >/dev/null && ss -lntp || true
+          ps -ef | grep -i -E 'vite|node' | grep -v grep || true
+          exit 1
+
+    
           sleep 1
           if ! kill -0 $(cat ../vite.pid) 2>/dev/null; then
             echo "::error::Vite process exited immediately"
@@ -79,28 +111,6 @@ jobs:
             exit 1
           fi
     
-      - name: Wait for dev server (with diagnostics)
-        run: |
-          for i in {1..180}; do
-            if curl -sSf http://127.0.0.1:5173 >/dev/null; then
-              echo "Vite is up"; exit 0
-            fi
-            # stopte Vite?
-            if ! kill -0 $(cat vite.pid) 2>/dev/null; then
-              echo "::error::Vite died while waiting"
-              tail -n +1 vite.log || true
-              # poorten/procs debug
-              command -v ss >/dev/null && ss -lntp || true
-              ps -ef | grep -i vite | grep -v grep || true
-              exit 1
-            fi
-            sleep 1
-          done
-          echo "::error::Vite failed to respond in time"
-          tail -n +1 vite.log emulators.log || true
-          command -v ss >/dev/null && ss -lntp || true
-          ps -ef | grep -i vite | grep -v grep || true
-          exit 1
                   
       - name: Wait for Functions emulator (tcp:5001)
         run: npx wait-on --timeout 600000 tcp:127.0.0.1:5001
