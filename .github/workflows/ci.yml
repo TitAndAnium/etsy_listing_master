@@ -103,9 +103,23 @@ jobs:
           ps -ef | grep -i -E 'vite|node' | grep -v grep || true
           exit 1
 
-      - name: Smoke ping (retry up to 120s)
+      - name: Smoke ping (retry until ready)
         run: |
           URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
+          echo "Probing $URL until 200/422 (max 120s)..."
+          for i in $(seq 1 120); do
+            CODE=$(curl -s -o resp.json -w "%{http_code}" -H "Content-Type: application/json" \
+                    -d '{"text":"smoke test","allow_handmade":true}' "$URL" || echo "000")
+            echo "try $i: HTTP $CODE"
+            if [ "$CODE" = "200" ] || [ "$CODE" = "422" ]; then
+              echo "Backend is ready (HTTP $CODE)"; break
+            fi
+            sleep 1
+          done
+
+          if [ "$CODE" != "200" ] && [ "$CODE" != "422" ]; then
+            echo "::error::Backend still not ready after retries (last HTTP $CODE)"
+            echo "===== vite.log ====="; tail -n +1 vite.log || true
           CODE=$(curl -s -o resp.json -w "%{http_code}" -H "Content-Type: application/json" \
                   -d '{"text":"smoke test","allow_handmade":true}' "$URL")
           echo "HTTP $CODE"
