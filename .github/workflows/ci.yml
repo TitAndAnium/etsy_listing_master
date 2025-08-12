@@ -103,20 +103,7 @@ jobs:
           ps -ef | grep -i -E 'vite|node' | grep -v grep || true
           exit 1
 
-      - name: Wait until function is initialized (read emulators.log)
-        run: |
-          for i in {1..120}; do
-            if grep -q "http function initialized" emulators.log && \
-                grep -q "api_generateListingFromDump" emulators.log; then
-              echo "Functions initialized"; exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::Function api_generateListingFromDump not initialized in time"
-          tail -n +1 emulators.log || true
-          exit 1
-
-      - name: Smoke ping (after init)
+      - name: Smoke ping (retry up to 120s)
         run: |
           URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
           CODE=$(curl -s -o resp.json -w "%{http_code}" -H "Content-Type: application/json" \
