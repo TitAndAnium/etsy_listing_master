@@ -5,13 +5,13 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --port 4173 --strictPort",
     "preview:ci": "vite preview --host 127.0.0.1 --port 5173 --strictPort",
     "cy:open": "cypress open",
     "cy:run": "start-server-and-test dev http://localhost:5173 cy:run:headless",
     "cy:run:headless": "cypress run",
     "dev:ci": "vite --host 127.0.0.1 --port 5173 --strictPort",
-    "test:e2e:ci": "cypress run --headless --browser electron --spec cypress/e2e/handmade-flex-e2e.cy.js",
+    "test:e2e:ci": "npm run build && npx start-server-and-test \"npm run preview\" http://localhost:4173 \"cypress run --headless --browser electron --spec cypress/e2e/handmade-flex-e2e.cy.js\"",
     "test:e2e": "cypress run --spec cypress/e2e/handmade-flex-e2e.cy.js",
     "cy:open:preview": "start-server-and-test preview http://localhost:4173 cy:open",
     "cy:run:preview": "start-server-and-test preview http://localhost:4173 cy:run:headless"
@@ -28,7 +28,7 @@
     "autoprefixer": "^10.4.14",
     "cypress": "^14.5.4",
     "postcss": "^8.4.21",
-    "start-server-and-test": "^2.0.3",
+    "start-server-and-test": "^2.0.13",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.4.0",
     "vite": "^4.5.0"
