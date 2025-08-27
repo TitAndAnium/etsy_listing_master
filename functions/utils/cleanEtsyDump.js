@@ -61,7 +61,7 @@ module.exports = function cleanEtsyDump(raw) {
 
   const cleaned = filteredLines.join('\n').trim();
   if (!cleaned) {
-    console.warn('[cleanEtsyDump] Geen secties herkend. Gebruik originele input als fallback.');
+    console.debug('[cleanEtsyDump] Geen secties herkend. Gebruik originele input als fallback.');
     return raw.trim();
   }
   return cleaned;

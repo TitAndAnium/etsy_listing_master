@@ -1,6 +1,26 @@
 import React, { useState } from 'react'
+import StatusBadge from './components/StatusBadge'
 import CollapsiblePanels from './components/CollapsiblePanels'
 import { ApiResponse, FieldState, ValidationResult } from './types'
+
+type FieldStatus = 'ok' | 'warn' | 'error'
+
+function computeStatusFor(v: {
+  isValid?: boolean;
+  warnings?: any[];
+  errors?: any[];
+  metrics?: { highSeverityWarnings?: number; mediumSeverityWarnings?: number; lowSeverityWarnings?: number };
+} | undefined): FieldStatus {
+  if (!v) return 'ok'
+  const high = v.metrics?.highSeverityWarnings ?? 0
+  const hasErrors = Array.isArray(v.errors) && v.errors.length > 0
+  if (hasErrors || high > 0 || v.isValid === false) return 'error'
+
+  const warns = (Array.isArray(v.warnings) ? v.warnings.length : 0) +
+    (v.metrics?.mediumSeverityWarnings ?? 0) +
+    (v.metrics?.lowSeverityWarnings ?? 0)
+  return warns > 0 ? 'warn' : 'ok'
+}
 
 function App() {
   const [text, setText] = useState('')
@@ -9,6 +29,7 @@ function App() {
   const [result, setResult] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [credits, setCredits] = useState<number | null>(null)
 
   const handleGenerate = async () => {
     if (!text.trim()) {
@@ -32,7 +53,9 @@ function App() {
         })
       })
 
-      if (!response.ok) {
+      // Accepteer 200 én 422 (validator soft/hard fail)
+      const isAcceptable = response.status === 200 || response.status === 422
+      if (!isAcceptable) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
@@ -60,9 +83,45 @@ function App() {
   // Helper function to determine status from validation metrics
   const statusFromMetrics = (metrics?: ValidationResult['metrics']) => {
     if (!metrics) return 'ok'
-    if (metrics.highSeverityWarnings > 0) return 'error'
-    if (metrics.mediumSeverityWarnings > 0 || metrics.lowSeverityWarnings > 0) return 'warn'
-    return 'ok'
+    if (metrics.highSeverityWarnings > 0) return 'error';
+    // Warnings degrade niet langer naar geel; alles behalve errors is groen
+    return 'ok';
+  }
+
+  // Derive per-field status & copy lock once result is available
+  type FieldStatus = 'ok' | 'warn' | 'error';
+
+  function statusFromValidationFor(field: 'title' | 'tags' | 'description', v: any): FieldStatus {
+    const hasFieldError =
+      Array.isArray(v?.errors) && v.errors.some((e: any) => e?.field === field);
+    if (hasFieldError) return 'error';
+
+    const hasFieldWarning =
+      Array.isArray(v?.warnings) && v.warnings.some((w: any) => w?.field === field && w?.severity === 'high');
+    if (hasFieldWarning) return 'error';
+
+    const anyWarn =
+      Number(v?.metrics?.mediumSeverityWarnings || 0) > 0 ||
+      Number(v?.metrics?.lowSeverityWarnings || 0) > 0 ||
+      (Array.isArray(v?.warnings) && v.warnings.some((w: any) => w?.field === field));
+
+    return anyWarn ? 'warn' : 'ok';
+  }
+
+  const titleStatus = statusFromValidationFor('title', result?.validation);
+  const tagsStatus = statusFromValidationFor('tags', result?.validation);
+  const descStatus = statusFromValidationFor('description', result?.validation);
+  const copyAllDisabled = [titleStatus, tagsStatus, descStatus].some(s => s === 'error')
+
+  const handleCopyAll = async () => {
+    if (copyAllDisabled || !result) return
+    const text = `${result.title}\n${result.tags.join(', ')}\n${result.description}`
+    try {
+      await navigator.clipboard.writeText(text)
+      alert('Copied!')
+    } catch (err) {
+      console.error('Copy failed', err)
+    }
   }
 
   const generateFields = (result: ApiResponse): FieldState[] => {
@@ -117,6 +176,41 @@ function App() {
     })
 
     return fields
+  }
+
+  // --- Credits helpers (demo: uid from localStorage) ---
+  const getUid = () => localStorage.getItem('uid') || 'demo-uid'
+
+  const fetchCredits = async () => {
+    try {
+      const uid = getUid()
+      const url = `http://localhost:5001/etsy-ai-hacker/us-central1/api_getUserCredits?uid=${encodeURIComponent(uid)}`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setCredits(typeof data.credits === 'number' ? data.credits : 0)
+    } catch (e) {
+      console.error('fetchCredits failed', e)
+    }
+  }
+
+  const handleBuyCredits = async () => {
+    try {
+      const uid = getUid()
+      const res = await fetch('http://localhost:5001/etsy-ai-hacker/us-central1/api_createCheckoutSession', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, credits: 100, amount_cents: 500 })
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      if (data?.url) {
+        window.location.href = data.url
+      }
+    } catch (e) {
+      console.error('handleBuyCredits failed', e)
+      alert('Failed to start checkout')
+    }
   }
 
   return (
@@ -178,6 +272,27 @@ function App() {
               </label>
             </div>
 
+            {/* Credits */}
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">Credits: {credits ?? '—'}</div>
+              <div className="flex gap-2">
+                <button
+                  data-testid="btn-refresh-credits"
+                  onClick={fetchCredits}
+                  className="px-3 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Refresh Credits
+                </button>
+                <button
+                  data-testid="btn-buy-credits"
+                  onClick={handleBuyCredits}
+                  className="px-3 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  Buy 100 credits ($5)
+                </button>
+              </div>
+            </div>
+
             {/* Generate Button */}
             <button
               onClick={handleGenerate}
@@ -206,11 +321,28 @@ function App() {
 
             {/* Results */}
             {result && !loading && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Generated Listing
-                </h2>
-                <CollapsiblePanels fields={generateFields(result)} />
+              <div className="space-y-4">
+                {/* Top: badges + Copy All */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <StatusBadge data-testid={`badge-title-${titleStatus}`} status={titleStatus} />
+                    <StatusBadge data-testid={`badge-tags-${tagsStatus}`} status={tagsStatus} />
+                    <StatusBadge data-testid={`badge-description-${descStatus}`} status={descStatus} />
+                  </div>
+                  <button
+                    data-testid="btn-copy-all"
+                    disabled={copyAllDisabled}
+                    onClick={handleCopyAll}
+                    className="px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+                  >
+                    Copy All
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Generated Listing</h3>
+                  <CollapsiblePanels fields={generateFields(result)} />
+                </div>
               </div>
             )}
           </div>
