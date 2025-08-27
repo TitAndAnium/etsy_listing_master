@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan repo for common secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATTERN='AIzaSy|sk_(live|test)|ghp_[A-Za-z0-9]{36,}|xox[baprs]-|-----BEGIN [A-Z ]+PRIVATE KEY-----|service[-_ ]?account|GOOGLE_APPLICATION_CREDENTIALS'
+          git grep -nI -E "$PATTERN" -- . ':(exclude).github/workflows/ci.yml' > secret_hits.txt || true
+          if [ -s secret_hits.txt ]; then
+            echo "::error::Potential secrets found (see secret_hits.txt)."
+            cat secret_hits.txt
+            exit 1
+          else
+            echo "No secrets detected."
+          fi
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-scan-artifacts
+          path: secret_hits.txt
+          if-no-files-found: ignore
+
+  e2e:
+    name: E2E (emulators + Cypress)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: secret-scan
+    env:
+      CI: "true"
+      MOCK_LLM: "1"
+      OPENAI_API_KEY: "dummy"
+      GCLOUD_PROJECT: "etsy-ai-hacker"
+      FIREBASE_CONFIG: '{"projectId":"etsy-ai-hacker"}'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install global tools
+        run: npm i -g firebase-tools@latest
+
+      - name: Install deps (root/functions/frontend)
+        run: |
+          npm ci
+          cd functions && npm ci && cd ..
+          cd frontend && npm ci && cd ..
+
+      - name: Start Firebase emulators (functions + firestore)
+        run: |
+          firebase emulators:start --only functions,firestore --project etsy-ai-hacker > emulators.log 2>&1 &
+          echo $! > emu.pid
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start Vite preview (stable)
+        working-directory: frontend
+        run: |
+          npm run preview:ci > ../vite.log 2>&1 &
+          echo $! > ../vite.pid
+          sleep 1
+          if ! kill -0 $(cat ../vite.pid) 2>/dev/null; then
+            echo "::error::Vite preview exited immediately"
+            tail -n +200 ../vite.log || true
+            exit 1
+          fi
+
+      - name: Wait for preview (with diagnostics)
+        run: |
+          for i in {1..180}; do
+            if curl -sSf http://127.0.0.1:5173 >/dev/null; then
+              echo "Vite preview is up"; exit 0
+            fi
+            if ! kill -0 $(cat vite.pid) 2>/dev/null; then
+              echo "::error::Vite preview died while waiting"
+              tail -n +1 vite.log || true
+              command -v ss >/dev/null && ss -lntp || true
+              ps -ef | grep -i -E 'vite|node' | grep -v grep || true
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::Vite preview failed to respond in time"
+          tail -n +1 vite.log emulators.log || true
+          command -v ss >/dev/null && ss -lntp || true
+          ps -ef | grep -i -E 'vite|node' | grep -v grep || true
+          exit 1
+
+      - name: Smoke ping (curl loop)
+        run: |
+          set -euo pipefail
+          URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
+          echo "⏳ Wachten tot $URL 200/422 geeft (timeout 120s)..."
+          for i in $(seq 1 120); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+                   -d '{"text":"smoke test","allow_handmade":true}' "$URL" || echo "000")
+            echo "  poging $i ⇒ HTTP $CODE"
+            if [[ "$CODE" == "200" || "$CODE" == "422" ]]; then
+              echo "✅ Backend up (HTTP $CODE)"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Backend niet bereikbaar (laatste HTTP $CODE)"; exit 1
+
+      - name: Run Cypress headless
+        working-directory: frontend
+        run: npm run test:e2e:ci
+
+      - name: Upload artifacts (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-and-logs
+          path: |
+            frontend/cypress/screenshots
+            frontend/cypress/videos
+            vite.log
+            emulators.log
+          if-no-files-found: ignore
+
+      - name: Cleanup (always)
+        if: always()
+        run: |
+          kill $(cat emu.pid) 2>/dev/null || true
+          kill $(cat vite.pid) 2>/dev/null || true

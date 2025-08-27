@@ -4,16 +4,29 @@ const fs = require("fs");
 const path = require("path");
 const OpenAI = require("openai");
 
-// Dummy-LLM support for emulator testing (ChatGPT fix #6)
-const USE_DUMMY_LLM = !process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'dummy' || process.env.OPENAI_API_KEY === '';
+// Dummy-LLM support for emulator testing & Jest
+const IS_TEST_ENV_GLOBAL = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID;
+const USE_DUMMY_LLM = IS_TEST_ENV_GLOBAL || !process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'dummy' || process.env.OPENAI_API_KEY === '';
 const openai = USE_DUMMY_LLM ? null : new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const prompts = require("../config/prompts.js");
 
 // Dummy responses for field generation
 const DUMMY_FIELD_RESPONSES = {
   title: "Handmade Silver Ring - Perfect Gift for Mom Birthday Anniversary",
-  tags: ["handmade", "silver", "ring", "gift", "mom", "birthday", "anniversary", "jewelry", "personalized", "unique", "artisan", "crafted"],
-  description: "Beautiful handmade silver ring, perfect as a thoughtful gift for mom on her birthday or anniversary. Crafted with attention to detail, this unique piece combines elegance with personal meaning. Each ring is carefully made by skilled artisans, ensuring a one-of-a-kind piece that will be treasured for years to come."
+  tags: JSON.stringify(["handmade", "silver", "ring", "gift", "mom", "birthday", "anniversary", "jewelry", "personalized", "unique", "artisan", "crafted", "adjustable"]),
+  description: `::: Overview :::
+Plain ASCII overview of a thoughtful handmade silver ring that makes a meaningful gift.
+
+::: Features :::
+- Lightweight and comfortable
+- Everyday wear
+- Gift-ready packaging
+
+::: Shipping and Processing :::
+Orders are prepared quickly and shipped with tracking. Processing times are communicated clearly.
+
+::: Call To Action :::
+Add this to your cart today and make your gift special.`
 };
 
 /**
@@ -62,19 +75,21 @@ async function generateField(fieldType, cleanedInput, contextBlock = "", retryCo
       });
     }
     const raw = response.choices[0].message.content;
+    // Ensure raw is a string for token counting and downstream handling
+    const rawStr = typeof raw === 'string' ? raw : JSON.stringify(raw);
     // Token out (approximation)
-    const tokensOut = Math.ceil(raw.split(/\s+/).length / 0.75);
+    const tokensOut = Math.ceil(rawStr.split(/\s+/).length / 0.75);
 
     // Debug logging for description output
     if (fieldType === 'description') {
-      console.log("[DEBUG] Raw Description Output:\n", raw);
+      console.log("[DEBUG] Raw Description Output:\n", rawStr);
     }
 
     // Handle different output formats per field type
     if (fieldType === "title" || fieldType === "description") {
       // Title and description return ASCII text directly
       return {
-        output: raw.trim(),
+        output: rawStr.trim(),
         tokens_in: tokensIn,
         tokens_out: tokensOut,
         retry_count: retryCount,
@@ -83,7 +98,7 @@ async function generateField(fieldType, cleanedInput, contextBlock = "", retryCo
     } else {
       // Tags and other fields return JSON
       try {
-        const parsed = JSON.parse(raw);
+        const parsed = JSON.parse(rawStr);
         return {
           output: parsed,
           tokens_in: tokensIn,
@@ -92,7 +107,7 @@ async function generateField(fieldType, cleanedInput, contextBlock = "", retryCo
           model: "gpt-4o"
         };
       } catch (e) {
-        console.warn("Failed to parse AI response:", raw);
+        console.warn("Failed to parse AI response:", rawStr);
         throw new Error("AI response is not valid JSON.");
       }
     }

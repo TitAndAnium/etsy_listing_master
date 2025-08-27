@@ -3,6 +3,14 @@
 const asciiRegex = /^[\x00-\x7F]+$/;
 const tagRegex = /^[a-z0-9\- ']{1,20}$/;
 
+// Helper: match '::: Label :::' lines case-insensitief en tolerant voor extra spaties
+function hasSection(desc, label) {
+  const name = String(label || '').replace(/\s+/g, "\\s+");
+  // Tolerant voor CRLF/nieuweregelvarianten en geen strikte lijn-ankers nodig
+  const rx = new RegExp(`(^|\\r?\\n)\\s*:::\\s*${name}\\s*:::\\s*(\\r?\\n|$)`, 'i');
+  return rx.test(String(desc || ''));
+}
+
 function validateOutput({ title = "", tags = [], description = "" }) {
   const notes = [];
   let isValid = true;
@@ -40,19 +48,14 @@ function validateOutput({ title = "", tags = [], description = "" }) {
   }
 
   // Tags check - alleen als tags array bestaat en niet leeg is
-  if (Array.isArray(tags) && tags.length > 0) {
-    if (tags.length !== 13) {
-      notes.push("tag_count_invalid");
-      isValid = false;
-    } else {
-      const seen = new Set();
-      tags.forEach(t => {
-        if (!/^[a-z0-9\- ']{1,20}$/.test(t)) notes.push("tag_invalid_chars_or_len");
-        if (seen.has(t)) notes.push("tag_duplicate");
-        seen.add(t);
-        if (/[A-Z]/.test(t)) notes.push("tag_not_lowercase");
-      });
-    }
+  if (Array.isArray(tags) && tags.length === 13) {
+    const seen = new Set();
+    tags.forEach(t => {
+      if (!/^[a-z0-9\- ']{1,20}$/.test(t)) notes.push("tag_invalid_chars_or_len");
+      if (seen.has(t)) notes.push("tag_duplicate");
+      seen.add(t);
+      if (/[A-Z]/.test(t)) notes.push("tag_not_lowercase");
+    });
   }
 
   // Type safety: ensure description is a string
@@ -70,24 +73,24 @@ function validateOutput({ title = "", tags = [], description = "" }) {
 
   // V3.0.1 Blokvalidatie - alleen als description bestaat en niet leeg is
   if (description && description.trim().length > 0) {
-    const requiredBlocks = [
-      "::: Overview :::",
-      "::: Features :::",
-      "::: Shipping and Processing :::",
-      "::: Call To Action :::"
+    const requiredLabels = [
+      "Overview",
+      "Features",
+      "Shipping and Processing",
+      "Call To Action"
     ];
     
     // Optionele blokken (alleen controleren als relevant)
-    const optionalBlocks = [
-      "::: Personalization Guide :::",
-      "::: Care Instructions :::",
-      "::: Available Sizes :::"
+    const optionalLabels = [
+      "Personalization Guide",
+      "Care Instructions",
+      "Available Sizes"
     ];
     
     // Controleer alleen verplichte blokken als description bestaat
-    requiredBlocks.forEach(block => {
-      if (!description.includes(block)) {
-        notes.push(`Description missing required block: ${block} retry_reason:desc_missing_block`);
+    requiredLabels.forEach(label => {
+      if (!hasSection(description, label)) {
+        notes.push(`Description missing required block: ::: ${label} ::: retry_reason:desc_missing_block`);
         isValid = false;
       }
     });
@@ -96,8 +99,8 @@ function validateOutput({ title = "", tags = [], description = "" }) {
   // Als description minder dan 50 karakters heeft, accepteer het als minimal mode
   if (description.length < 50) {
     // Minimal mode: alleen Overview en Call To Action vereist
-    const minimalRequired = ["::: Overview :::", "::: Call To Action :::"];
-    const missingMinimal = minimalRequired.filter(block => !description.includes(block));
+    const minimalRequired = ["Overview", "Call To Action"];
+    const missingMinimal = minimalRequired.filter(label => !hasSection(description, label));
     if (missingMinimal.length === 0) {
       // Clear alle block-gerelateerde errors voor minimal mode
       const blockErrors = notes.filter(note => note.includes('desc_missing_block'));

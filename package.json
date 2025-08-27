@@ -3,7 +3,8 @@
     "test": "cross-env FIRESTORE_EMULATOR_HOST=localhost:9081 jest --runInBand",
     "test:ci": "npm run emulators:clean && npm test",
     "emulators": "firebase emulators:start",
-    "emulators:clean": "taskkill /f /im node.exe /im java.exe 2>nul & firebase emulators:start --only functions,firestore"
+    "emulators:clean": "taskkill /f /im node.exe /im java.exe 2>nul & firebase emulators:start --only functions,firestore",
+    "slack:test": "node -r dotenv/config scripts/slackPing.js 'Webhook werkt'"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -12,7 +13,9 @@
     "openai": "^5.10.2"
   },
   "devDependencies": {
+    "@testing-library/cypress": "^10.0.3",
     "cross-env": "^7.0.3",
+    "cypress": "^14.5.4",
     "jest": "^30.0.5"
   }
 }

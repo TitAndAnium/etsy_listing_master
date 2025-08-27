@@ -1,4 +1,75 @@
-describe('Handmade-Flex E2E Integration Test', () => {
+// Preview vs Full-E2E switch:
+// - ZONDER E2E_FULL => draai een mocked, preview-vriendelijke suite (geen emulator nodig)
+// - MET    E2E_FULL => draai de bestaande, volledige suite hieronder (ongewijzigd)
+
+const API_URL = 'http://localhost:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump';
+
+if (!Cypress.env('E2E_FULL')) {
+  describe('Handmade-Flex E2E (preview/mocked)', () => {
+    beforeEach(() => {
+      cy.visit('/');
+      cy.get('textarea').type('dummy'); // knop activeren
+    });
+
+    it('happy path: badges groen en Copy All enabled', () => {
+      cy.intercept('POST', API_URL, {
+        statusCode: 200,
+        body: {
+          fields: {
+            title: 'ok title',
+            tags: Array.from({ length: 13 }, (_, i) => `tag${i}`),
+            description: 'ok'
+          },
+          validation: {
+            isValid: true,
+            warnings: [],
+            metrics: { highSeverityWarnings: 0, totalWarnings: 0 }
+          }
+        }
+      }).as('genOk');
+
+      cy.contains('button', 'Generate Listing').should('not.be.disabled').click();
+      cy.wait('@genOk');
+
+      // Top-badges + Copy All (conform standaard)
+      cy.get('[data-testid="badge-title-ok"]').should('exist');
+      cy.get('[data-testid="badge-tags-ok"]').should('exist');
+      cy.get('[data-testid="badge-description-ok"]').should('exist');
+      cy.get('[data-testid="btn-copy-all"]').should('not.be.disabled');
+    });
+
+    it('error op tags: tags=error en Copy All disabled', () => {
+      cy.intercept('POST', API_URL, {
+        statusCode: 422,
+        body: {
+          fields: {
+            title: 'still ok',
+            tags: Array.from({ length: 13 }, (_, i) => `tag${i}`),
+            description: 'ascii'
+          },
+          validation: {
+            isValid: false,
+            warnings: [
+              { field: 'tags', severity: 'high', message: 'simulated' }
+            ],
+            metrics: { highSeverityWarnings: 1, totalWarnings: 1 }
+          }
+        }
+      }).as('genErr');
+
+      cy.contains('button', 'Generate Listing').should('not.be.disabled').click();
+      cy.wait('@genErr');
+
+      cy.get('[data-testid="badge-title-ok"]').should('exist');
+      cy.get('[data-testid="badge-description-ok"]').should('exist');
+      cy.get('[data-testid="badge-tags-error"]').should('exist');
+      cy.get('[data-testid="btn-copy-all"]').should('be.disabled');
+    });
+  });
+
+} else {
+  // ==== Vanaf hier laat je je bestaande volledige suite staan (NIKS wijzigen) ====
+  describe('Handmade-Flex E2E Integration Test', () => {
   before(() => {
     // start-server-and-test has already ensured the Vite server is up on 5173
     cy.checkEmulatorStatus()
@@ -176,4 +247,5 @@ describe('Handmade-Flex E2E Integration Test', () => {
     // Copy button should be enabled since no high-severity warnings
     cy.get('button').contains('Copy').should('not.be.disabled')
   })
-})
+  })
+}

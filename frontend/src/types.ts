@@ -1,5 +1,7 @@
 export type ValidationLevel = 'ok' | 'warn' | 'error';
 
+export type FieldStatus = 'ok' | 'warn' | 'error';
+
 export interface FieldState {
   label: string;
   content: string;
