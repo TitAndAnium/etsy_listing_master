@@ -261,7 +261,8 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 • UI toont `Credits: …` en kan checkout starten en credits ophalen.
 
 **Config nodig**  
-• `firebase functions:config:set stripe.secret=sk_test_xxx stripe.webhook_secret=whsec_xxx app.base_url="https://<hosting-domain>"`  
+• `firebase functions:config:set stripe.secret="<STRIPE_SECRET_KEY>" stripe.webhook_secret="<STRIPE_WEBHOOK_SECRET>" app.base_url="https://<your-hosting-domain>"`  
+  *Placeholders—geen echte sleutels. Deze notatie voorkomt secret-scanner hits.*  
 • Deploy: `firebase deploy --only functions,hosting`  
 • Stripe Dashboard: webhook endpoint koppelen naar `https://<region>-<project>.cloudfunctions.net/stripeWebhook` (of nieuwe gen-2 URL).
 
