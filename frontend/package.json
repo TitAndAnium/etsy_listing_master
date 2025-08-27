@@ -12,13 +12,16 @@
     "cy:run:headless": "cypress run",
     "dev:ci": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "test:e2e:ci": "cypress run --headless --browser electron --spec cypress/e2e/handmade-flex-e2e.cy.js",
-    "test:e2e": "cypress run --spec cypress/e2e/handmade-flex-e2e.cy.js"
+    "test:e2e": "cypress run --spec cypress/e2e/handmade-flex-e2e.cy.js",
+    "cy:open:preview": "start-server-and-test preview http://localhost:4173 cy:open",
+    "cy:run:preview": "start-server-and-test preview http://localhost:4173 cy:run:headless"
   },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@testing-library/cypress": "^10.0.3",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^4.0.3",

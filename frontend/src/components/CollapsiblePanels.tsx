@@ -14,8 +14,13 @@ export default function CollapsiblePanels({ fields }: Props) {
         <details key={field.label} className="border border-gray-300 rounded-lg">
           <summary className="cursor-pointer select-none p-3 bg-gray-50 flex items-center justify-between hover:bg-gray-100">
             <div className="flex items-center">
-              <StatusBadge status={field.status} data-testid={`${field.label.toLowerCase()}-badge`} />
-              <span className="font-medium">{field.label}</span>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{field.label}</span>
+                <StatusBadge 
+                  status={field.status} 
+                  data-testid={`panel-badge-${field.label.toLowerCase()}-${field.status}`}
+                />
+              </div>
               {field.warnings > 0 && (
                 <span className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
                   {field.warnings} warning{field.warnings !== 1 ? 's' : ''}

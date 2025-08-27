@@ -53,7 +53,7 @@ jobs:
           cache: 'npm'
 
       - name: Install global tools
-        run: npm i -g firebase-tools@latest wait-on
+        run: npm i -g firebase-tools@latest
 
       - name: Install deps (root/functions/frontend)
         run: |
@@ -103,34 +103,21 @@ jobs:
           ps -ef | grep -i -E 'vite|node' | grep -v grep || true
           exit 1
 
-      - name: Smoke ping (retry until ready)
+      - name: Smoke ping (curl loop)
         run: |
+          set -euo pipefail
           URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
-          echo "Probing $URL until 200/422 (max 120s)..."
+          echo "⏳ Wachten tot $URL 200/422 geeft (timeout 120s)..."
           for i in $(seq 1 120); do
-            CODE=$(curl -s -o resp.json -w "%{http_code}" -H "Content-Type: application/json" \
-                    -d '{"text":"smoke test","allow_handmade":true}' "$URL" || echo "000")
-            echo "try $i: HTTP $CODE"
-            if [ "$CODE" = "200" ] || [ "$CODE" = "422" ]; then
-              echo "Backend is ready (HTTP $CODE)"; break
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+                   -d '{"text":"smoke test","allow_handmade":true}' "$URL" || echo "000")
+            echo "  poging $i ⇒ HTTP $CODE"
+            if [[ "$CODE" == "200" || "$CODE" == "422" ]]; then
+              echo "✅ Backend up (HTTP $CODE)"; exit 0
             fi
             sleep 1
           done
-
-          if [ "$CODE" != "200" ] && [ "$CODE" != "422" ]; then
-            echo "::error::Backend still not ready after retries (last HTTP $CODE)"
-            echo "===== vite.log ====="; tail -n +1 vite.log || true
-          CODE=$(curl -s -o resp.json -w "%{http_code}" -H "Content-Type: application/json" \
-                  -d '{"text":"smoke test","allow_handmade":true}' "$URL")
-          echo "HTTP $CODE"
-          if [ "$CODE" != "200" ] && [ "$CODE" != "422" ]; then
-            echo "::error::Backend returned $CODE on smoke ping"
-            tail -n +1 vite.log emulators.log || true
-            command -v ss >/dev/null && ss -lntp || true
-            ps -ef | grep -i -E 'vite|firebase|node|java' | grep -v grep || true
-            cat resp.json || true
-            exit 1
-          fi
+          echo "::error::Backend niet bereikbaar (laatste HTTP $CODE)"; exit 1
 
       - name: Run Cypress headless
         working-directory: frontend

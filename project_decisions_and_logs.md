@@ -1695,6 +1695,57 @@ Systeem volledig hersteld en productie-klaar.
 
 ---
 
+### Emulator config – Firestore rules hooked
+📅 2025-08-13T19:49:40Z | Domein: Backend/Database
+Root cause: rules-path ontbrak → emulator draaide allow-all
+Fix: firebase.json patched met "rules": "firestore.rules", emulators herstart
+Resultaat: geen rules-warnings meer; emulator leest Firestore-rules
+Bestanden: firebase.json
+
+---
+
+### 📄 [2025-08-13] Stap 1.3 – Badge-mapping & Copy-knop **STATUS: UITGEVOERD – VALIDATIE OPEN**
+
+**Context**  
+Badges tonen nu uitsluitend groen (ok) of rood (error). `CopyButton` en "Copy All" worden alleen uitgeschakeld bij fouten.
+
+**Wijzigingen**  
+* `frontend/src/types.ts` – `ValidationLevel` teruggebracht tot `'ok' | 'error'`.  
+* `frontend/src/App.tsx` – `statusFromMetrics()` aangepast; warnings degraderen niet meer.  
+* `frontend/src/components/StatusBadge.tsx` – gele kleuroptie verwijderd.  
+* Build succesvol (`npm run build`).  
+* `vite preview` draait op http://localhost:4173 voor UX-check.
+
+**Te valideren**  
+1. Geldige API-response → alle badges groen, "Copy All" actief.  
+2. Geforceerde fout → betreffende badge rood, "Copy All" disabled.
+
+---
+
+### 📄 [2025-08-14] Frontend accepteert HTTP 422 **STATUS: UITGEVOERD**
+
+**Context**  
+Backend stuurt _422 Unprocessable Entity_ bij validatie-blokkades (soft/hard fail). Frontend gooide tot nu toe elke non-200 response weg, waardoor gebruikers een generieke fout zagen.
+
+**Wijziging**  
+* `frontend/src/App.tsx` – fetch-afhandeling aangepast: responses met status 200 _of_ 422 worden geaccepteerd; alleen andere statuscodes triggeren een error.  
+* Build groen (`npm run build`).
+
+**Resultaat**  
+422-JSON wordt nu netjes gerenderd; badges en "Copy All" beslissen zelf obv. `validation` payload. Emulator hoeft niet opnieuw te starten.
+
+**Actiehouder:** Cascade
+
+---
+
+### 📄 [2025-08-14] F1.3 – App.tsx JSX-structuur hersteld
+📅 2025-08-14T19:29:30Z
+Motief: mismatched closing tags veroorzaakten build/JSX compile errors.
+Fix: resultaat-renderblok herschreven; duplicate secties verwijderd; alle tags correct gesloten.
+Resultaat: `npm run build` groen.
+Bestanden: `frontend/src/App.tsx`
+
+---
 ### 📄 [2025-08-09] Besluitvorming GitHub & Documentatie-up-to-date
 
 **Context**  
@@ -2767,3 +2818,57 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:5001/etsy-ai-hacker/us-cen
 * Added `.github/workflows/ci.yml` for secret-scan + emulators + Cypress headless.
 * Extra npm scripts `dev:ci` & `test:e2e:ci` in `frontend/package.json`.
 * First run should trigger automatically on push.
+
+
+---
+
+### 📄 [2025-08-12] CI Workflow Stabilisatie — **STATUS: IN BEHANDELING**
+
+**Context**  
+CI-runs zijn nog steeds flaky — vooral door timing-issues bij het opstarten van de Firebase Functions-emulator en de mock-handler. We hebben meerdere fixes gepusht, maar de pipeline is nog niet volledig groen.
+
+**Tot nu toe uitgevoerd**
+1. Duplicate handler verwijderd + mock-mode toegevoegd in [functions/api_generateListingFromDump.js](cci:7://file:///g:/Dev/onebox-hacker/functions/api_generateListingFromDump.js:0:0-0:0).
+2. CI-workflow omgebouwd naar `vite preview` met PID-checks (`preview:ci` script).
+3. Init-greps vervangen door één `Smoke ping (retry until ready)`-loop (max 120 s).
+4. Overbodige stappen & dubbele `run:`-blokken verwijderd; commit `1ef3afc` op branch `chore/ci-e2e`.
+
+**Huidige status (12-aug 21:50)**
+- 🔄 Smoke-ping werkt lokaal; eerste GitHub Actions-run is nog bezig.  
+- 🟠 Cypress start, maar eindresultaten zijn nog niet bekend.  
+- ⚠️ YAML-lint-warnings over `actions/setup-node@v4` en `actions/upload-artifact@v4` staan nog open.
+
+**Volgende acties**
+1. Logs van lopende CI-run analyseren zodra deze klaar is; eventuele fouten fixen.  
+2. Bij groene run → PR `chore/ci-e2e` mergen naar `main`.  
+3. Bij falen → extra workflow-aanpassingen of mock-verbeteringen.  
+4. Lint-warnings oplossen door versies van GitHub Actions te pinnen.
+
+**Actiehouder:** Cascade
+
+---
+
+### [2025-08-16] Cypress Intercept Fix & Logboek-tooling Foutanalyse
+
+**Context:** Cypress-tests faalden consistent op timeouts. De `cy.intercept` gebruikte een relatief glob-patroon (`**/api_...*`), terwijl de frontend een absolute URL aanriep. Deze mismatch zorgde ervoor dat de intercept nooit triggerde.
+
+**Fix:** Het intercept-patroon in [copy_gate.cy.ts](cci:7://file:///g:/Dev/onebox-hacker/frontend/cypress/e2e/copy_gate.cy.ts:0:0-0:0) is bijgewerkt naar de precieze, absolute URL.
+
+**Resultaat:** De interceptie is nu betrouwbaar, wat de testfouten oplost.
+
+**Meta-incident:** Tijdens het loggen van deze fix heeft de `propose_code` tool tweemaal geprobeerd het volledige logboek te verwijderen. Dit duidt op een bug in de tool bij het verwerken van grote bestanden.
+**Besluit:** Voor dit logboek wordt de `propose_code` tool niet meer gebruikt. Toekomstige entries zullen als platte tekst worden aangeleverd om handmatig toe te voegen, totdat de tool-betrouwbaarheid is gegarandeerd.
+
+
+## 2025-08-16: Cypress Test [copy_gate.cy.ts](cci:7://file:///g:/Dev/onebox-hacker/frontend/cypress/e2e/copy_gate.cy.ts:0:0-0:0) gefixt
+
+**Probleem:** De Cypress-test voor de 'Copy All'-knop faalde herhaaldelijk. De tests konden de statusbadges niet vinden, wat resulteerde in onjuiste assertions over de knopstatus (enabled/disabled).
+
+**Analyse & Oplossing:**
+1.  **Eerste poging:** De statusberekening in [App.tsx](cci:7://file:///g:/Dev/onebox-hacker/frontend/src/App.tsx:0:0-0:0) werd per veld gescheiden. Dit was een correcte aanpassing in de componentlogica, maar loste de test niet op.
+2.  **Onderzoek:** De hoofdoorzaak bleek een mismatch te zijn tussen de datastructuur van de mock-API-response in de Cypress-test en de structuur die de [App.tsx](cci:7://file:///g:/Dev/onebox-hacker/frontend/src/App.tsx:0:0-0:0)-component verwachtte.
+3.  **Fix:** De `cy.intercept` in [copy_gate.cy.ts](cci:7://file:///g:/Dev/onebox-hacker/frontend/cypress/e2e/copy_gate.cy.ts:0:0-0:0) is aangepast. De body van de mock-response is nu correct genest binnen een `fields`-object, zowel voor het succes- als het foutscenario.
+4.  **Versteviging:** De test-assertions zijn explicieter gemaakt. In plaats van alleen te controleren op het bestaan van een badge ([cy.badge('title')](cci:1://file:///g:/Dev/onebox-hacker/frontend/cypress/support/e2e.ts:12:6-12:108)), controleren de tests nu op de specifieke status ([cy.badge('title', 'ok')](cci:1://file:///g:/Dev/onebox-hacker/frontend/cypress/support/e2e.ts:12:6-12:108) of [cy.badge('tags', 'error')](cci:1://file:///g:/Dev/onebox-hacker/frontend/cypress/support/e2e.ts:12:6-12:108)).
+
+**Resultaat:** De tests zijn nu robuust, valideren de frontend-logica correct en slagen consistent.
+
