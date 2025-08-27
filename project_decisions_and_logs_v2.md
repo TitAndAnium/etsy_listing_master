@@ -2,6 +2,17 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### ✅ [2025-08-27] QS-14 — Budget-guard PR merged + secret-scan groen + E2E CI script
+- **What**:
+  - Merged PR *budget-cap-guard* into `chore/ci-e2e` (commit `7f3f6fd`).
+  - Secret placeholders geneutraliseerd (OPENAI, SLACK, STRIPE) → secret-scan checks pass.
+  - Frontend `package.json` scripts geüpdatet: build + `start-server-and-test` voor E2E (port 4173).
+- **Why**: Enforces daily cost limits, secures repo from leaking keys, and stabilises CI E2E workflow.
+- **Impact**: Main branch now blocks over-budget runs (429) and runs green CI pipeline.
+- **Next**: Implement PR-02 Per-user credits guard.
+- **Owner**: Cascade (Windsurf)
+
+---
 ### ✅ [2025-08-27] QS-13 — Budget cap guard live
 - **What**: Implemented daily budget guard:
   - Added `utils/budgetGuard.js` with `precheck()` and `add()`.
