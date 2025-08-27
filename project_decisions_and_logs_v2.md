@@ -2,6 +2,13 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### ✅ [2025-08-27] MILESTONE — PR-01 Budget Guard merged (CI groen)
+- **What**: Daily budget cap guard live on main; secret scan green; E2E CI preview script active.
+- **Why**: Marks stable baseline before rolling out user credits & alerts.
+- **Impact**: Cost overruns prevented; pipeline fully green.
+- **Owner**: Cascade (Windsurf)
+
+---
 ### ✅ [2025-08-27] QS-14 — Budget-guard PR merged + secret-scan groen + E2E CI script
 - **What**:
   - Merged PR *budget-cap-guard* into `chore/ci-e2e` (commit `7f3f6fd`).
