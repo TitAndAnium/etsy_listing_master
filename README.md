@@ -169,6 +169,16 @@ MAX_TOKENS=2000
 }
 ```
 
+### Credits System
+#### Daglimiet (`DAILY_CREDITS`)
+- Het daglimiet per gebruiker wordt bepaald door de omgevingsvariabele `DAILY_CREDITS` (fallback `DEFAULT_USER_CREDITS`, standaard 500).
+- De limiet wordt **runtime** uit de omgeving gelezen (geen hard-coded constant meer).
+- In tests wordt het in-memory creditsgeheugen per test leeggemaakt met `_resetTestState()`.
+
+#### Testhelper
+- `_resetTestState()` bevindt zich in `functions/utils/credits.js`.
+- Wordt in `functions/__tests__/credits.test.js` aangeroepen in `beforeEach()` zodat elke spec met een schone bucket start.
+
 ## 🧪 Testing
 
 ### Unit Tests (Jest)
