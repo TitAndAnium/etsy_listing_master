@@ -2,6 +2,13 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 📝 [2025-08-28] QS-15b — Credits documentatie toegevoegd
+- **What**: README.md credits-sectie geschreven en CHANGELOG.md aangemaakt ([Unreleased]) met runtime DAILY_CREDITS en _resetTestState details.
+- **Why**: Documentatie bijhouden voor devs en reviewers.
+- **Impact**: Geen code; onboarding duidelijker.
+- **Owner**: Cascade (Windsurf)
+
+---
 ### 🔧 [2025-08-28] QS-15a — Fix persisted credits state in Jest
 - **What**: Added `_resetTestState()` helper in `utils/credits.js` and called it in `credits.test.js` `beforeEach`, ensuring per-test isolation. Tests now pass when `DAILY_CREDITS` varies.
 - **Why**: Previous implementation kept in-memory buckets across tests, causing `getBalance` expectation mismatch (60 → 30).
@@ -136,7 +143,7 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
   - `raw` wordt nu veilig als string verwerkt (`rawStr`) vóór token-telling en JSON-parse.
 - Why: Losst `raw.split is not a function` op en stabiliseert parsing in tests die JSON voor tags verwachten.
 - Impact: Jest tests voor field generation en logging draaien stabieler; geen timeouts/parse errors.
-- Files: [functions/utils/fieldGenerator.js](cci:7://file:///g:/Dev/onebox-hacker/functions/utils/fieldGenerator.js:0:0-0:0).
+- Files: [functions/utils/fieldGenerator.js](cci:7://file:///g:/Dev/onebox-hacker/functions/utils/fieldGenerator.js:0:0-0).
 - Next: Jest clear cache + run in-band; daarna QS‑7.5 deploy en log “Deploy uitgevoerd ✅”.
 - Owner: Cascade (Backfire Sentry)
 
