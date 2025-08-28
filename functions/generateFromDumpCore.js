@@ -40,6 +40,7 @@ const loadPromptWithVersion = require("./utils/loadPromptWithVersion");
 const { computeQualityScore } = require("./utils/qualityScore");
 const { getFailAction } = require('./utils/validators/failPolicy');
 const { precheck, add: addCost } = require('./utils/budgetGuard');
+const { ensureCredits, consumeCredits } = require('./utils/credits');
 
 // Back-compat: sta zowel (raw, uid, runId, personaLevel) als (raw, uid, {runId, personaLevel, ...}) toe
 function normalizeOptions(optionsOrRunId, maybePersona) {
@@ -107,6 +108,11 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
   const budget = await precheck();
   if (!budget.ok && budget.hard) {
     return { status: 429, error: 'Dagbudget bereikt. Probeer later opnieuw.' };
+  }
+  // ---- Credits pre-check ----
+  const creditInfo = await ensureCredits(uid);
+  if (creditInfo.remaining <= 0) {
+    return { status: 429, error: 'Daily credits exhausted' };
   }
   // 🔍 DEBUG: Toon originele input
   console.log("[DEBUG] rawText:", rawText);
@@ -413,7 +419,9 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
             console.debug('[logEvent] pre-title log skipped:', e.message);
           }
         }
-        await addCost(estimateCost(model, tokens_in, tokens_out));
+        const titleCost = estimateCost(model, tokens_in, tokens_out);
+        await addCost(titleCost);
+        await consumeCredits(uid, titleCost);
         break;
       } else if (retry === 1) {
         fail = true;
@@ -540,7 +548,9 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         if (!IS_TEST_ENV) {
           try { await logEvent(preTagsLog); } catch (e) { console.debug('[logEvent] pre-tags log skipped:', e.message); }
         }
-        await addCost(estimateCost(model, tokens_in, tokens_out));
+        const tagsCost = estimateCost(model, tokens_in, tokens_out);
+        await addCost(tagsCost);
+        await consumeCredits(uid, tagsCost);
         break;
       } else if (retry === 1) {
         fail = true;
@@ -653,7 +663,9 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         if (!IS_TEST_ENV) {
           try { await logEvent(preDescLog); } catch (e) { console.debug('[logEvent] pre-desc log skipped:', e.message); }
         }
-        await addCost(estimateCost(model, tokens_in, tokens_out));
+        const descCost = estimateCost(model, tokens_in, tokens_out);
+        await addCost(descCost);
+        await consumeCredits(uid, descCost);
         break;
       } else if (retry === 1) {
         fail = true;

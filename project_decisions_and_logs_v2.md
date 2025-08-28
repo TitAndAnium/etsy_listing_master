@@ -2,6 +2,18 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🚧 [2025-08-28] QS-15 — Per-user credits guard (PR-02 open)
+- **What**:
+  - Added `utils/credits.js` with `ensureCredits`, `consumeCredits`, `getBalance` and in-memory store for tests.
+  - Integrated credits enforcement in `generateFromDumpCore.js` (pre-check + cost deductions).
+  - New env var `DAILY_CREDITS` in `.env.example` (default `500`).
+  - Unit tests `credits.test.js` cover happy path & limit exceed.
+- **Why**: Enforce per-user daily token/credits quota to prevent abuse and control spend.
+- **Impact**: Requests over quota now return `429 Daily credits exhausted`.
+- **Next**: Firestore transaction implementation & E2E verification.
+- **Owner**: Cascade (Windsurf)
+
+---
 ### ✅ [2025-08-27] MILESTONE — PR-01 Budget Guard merged (CI groen)
 - **What**: Daily budget cap guard live on main; secret scan green; E2E CI preview script active.
 - **Why**: Marks stable baseline before rolling out user credits & alerts.
