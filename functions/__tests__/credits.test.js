@@ -22,7 +22,7 @@ describe('credits utils', () => {
     // Exceed limit
     res = await consumeCredits(uid, 80);
     expect(res.ok).toBe(false);
-    expect(res.remaining).toBe(70 - 80); // negative remains allowed in response
+    expect(res.remaining).toBe(70); // remaining unchanged when exceed
   });
 
   test('getBalance mirrors ensureCredits remaining', async () => {

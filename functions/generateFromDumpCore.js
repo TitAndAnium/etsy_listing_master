@@ -104,6 +104,7 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
   const options = normalizeOptions(optionsOrRunId, maybePersona);
   const { runId = "manual-run", personaLevel = 3, allow_handmade = false, gift_mode = false } = options;
   const start = Date.now();
+  let qualityScore = null; // ensure defined for later runSummary even if validation fails
   // ---- Budget pre-check ----
   const budget = await precheck();
   if (!budget.ok && budget.hard) {
@@ -421,7 +422,10 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         }
         const titleCost = estimateCost(model, tokens_in, tokens_out);
         await addCost(titleCost);
-        await consumeCredits(uid, titleCost);
+        const titleCredit = await consumeCredits(uid, titleCost);
+        if (!titleCredit.ok) {
+          return { status: 429, error: 'Daily credits exhausted' };
+        }
         break;
       } else if (retry === 1) {
         fail = true;
@@ -550,7 +554,10 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         }
         const tagsCost = estimateCost(model, tokens_in, tokens_out);
         await addCost(tagsCost);
-        await consumeCredits(uid, tagsCost);
+        const tagsCredit = await consumeCredits(uid, tagsCost);
+        if (!tagsCredit.ok) {
+          return { status: 429, error: 'Daily credits exhausted' };
+        }
         break;
       } else if (retry === 1) {
         fail = true;
@@ -665,7 +672,10 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         }
         const descCost = estimateCost(model, tokens_in, tokens_out);
         await addCost(descCost);
-        await consumeCredits(uid, descCost);
+        const descCredit = await consumeCredits(uid, descCost);
+        if (!descCredit.ok) {
+          return { status: 429, error: 'Daily credits exhausted' };
+        }
         break;
       } else if (retry === 1) {
         fail = true;
@@ -708,7 +718,7 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
     const validationResult = runAllValidators(result.fields, validationContext);
     
     // Calculate quality_score IMMEDIATELY after validation
-    const qualityScore = computeQualityScore({ validation: validationResult });
+    qualityScore = computeQualityScore({ validation: validationResult });
     console.log(`[DEBUG] Quality score calculated: ${qualityScore}`);
     
     // Now log all field events with the calculated quality_score
