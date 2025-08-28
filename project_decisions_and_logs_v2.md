@@ -2,6 +2,13 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🔧 [2025-08-28] QS-15a — Fix persisted credits state in Jest
+- **What**: Added `_resetTestState()` helper in `utils/credits.js` and called it in `credits.test.js` `beforeEach`, ensuring per-test isolation. Tests now pass when `DAILY_CREDITS` varies.
+- **Why**: Previous implementation kept in-memory buckets across tests, causing `getBalance` expectation mismatch (60 → 30).
+- **Impact**: All unit tests green with dynamic credit limits; no runtime logic changes.
+- **Owner**: Cascade (Windsurf)
+
+---
 ### 🚧 [2025-08-28] QS-15 — Per-user credits guard (PR-02 open)
 - **What**:
   - Added `utils/credits.js` with `ensureCredits`, `consumeCredits`, `getBalance` and in-memory store for tests.

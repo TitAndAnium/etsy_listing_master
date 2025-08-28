@@ -1,18 +1,29 @@
 // functions/utils/credits.js
 const dayKey = () => new Date().toISOString().slice(0, 10);
-const DEFAULT_LIMIT = parseInt(
-  process.env.DAILY_CREDITS || process.env.DEFAULT_USER_CREDITS || '500',
-  10
-);
 const IS_TEST = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID;
+const defaultLimit = () =>
+  parseInt(process.env.DAILY_CREDITS || process.env.DEFAULT_USER_CREDITS || '500', 10);
 
-// In-memory map used for Jest/dev; shape: mem[uid][YYYY-MM-DD] = { limit, used }
+// internal state (in-memory buckets)
 const mem = {};
+
+// TEST-ONLY helper to reset all buckets between Jest test cases
+function _resetTestState() {
+  if (IS_TEST) {
+    for (const uid of Object.keys(mem)) {
+      delete mem[uid];
+    }
+  }
+}
 
 function getDoc(uid) {
   const k = dayKey();
   if (!mem[uid]) mem[uid] = {};
-  if (!mem[uid][k]) mem[uid][k] = { limit: DEFAULT_LIMIT, used: 0 };
+  if (!mem[uid][k]) mem[uid][k] = { limit: defaultLimit(), used: 0 };
+  // In tests: reset bucket when DAILY_CREDITS changes during runtime
+  if (IS_TEST && mem[uid][k].limit !== defaultLimit()) {
+    mem[uid][k] = { limit: defaultLimit(), used: 0 };
+  }
   return mem[uid][k];
 }
 
@@ -23,11 +34,12 @@ async function ensureCredits(uid) {
     return { ...doc, remaining: Math.max(0, doc.limit - doc.used) };
   }
   // TODO: Firestore lookup/initialise
-  return { limit: DEFAULT_LIMIT, used: 0, remaining: DEFAULT_LIMIT };
+  const lim = defaultLimit();
+  return { limit: lim, used: 0, remaining: lim };
 }
 
 async function consumeCredits(uid, amount = 0) {
-  if (!uid || amount <= 0) return { ok: true, remaining: DEFAULT_LIMIT };
+  if (!uid || amount <= 0) return { ok: true, remaining: defaultLimit() };
   if (IS_TEST) {
     const doc = getDoc(uid);
     if (doc.used + amount > doc.limit) {
@@ -37,7 +49,8 @@ async function consumeCredits(uid, amount = 0) {
     return { ok: true, remaining: doc.limit - doc.used };
   }
   // TODO: Firestore transaction – atomic increment
-  return { ok: true, remaining: DEFAULT_LIMIT - amount };
+  const lim = defaultLimit();
+  return { ok: amount <= lim, remaining: Math.max(0, lim - amount) };
 }
 
 async function getBalance(uid) {
@@ -45,4 +58,4 @@ async function getBalance(uid) {
   return { remaining: info.remaining };
 }
 
-module.exports = { ensureCredits, consumeCredits, getBalance };
+module.exports = { ensureCredits, consumeCredits, getBalance, _resetTestState };

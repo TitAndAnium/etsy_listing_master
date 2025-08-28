@@ -1,10 +1,11 @@
-const { ensureCredits, consumeCredits, getBalance } = require('../utils/credits');
+const { ensureCredits, consumeCredits, getBalance, _resetTestState } = require('../utils/credits');
 
 describe('credits utils', () => {
   const uid = 'testUser';
   beforeEach(() => {
     process.env.DAILY_CREDITS = '100';
     process.env.NODE_ENV = 'test';
+    _resetTestState();
   });
 
   test('ensureCredits returns default remaining', async () => {
