@@ -86,6 +86,29 @@ curl -X POST http://localhost:5001/etsy-ai-hacker/us-central1/api_generateListin
   -d '{"text":"handmade wooden jewelry box with velvet interior"}'
 ```
 
+## 🧪 Local Testing with Emulators
+
+```powershell
+# 1. Start emulators (functions + auth + firestore)
+cd functions
+npm run emul:func
+```
+You should see **Auth** on port `9099` and **Functions** on `5001`.
+
+```powershell
+# 2. Obtain an ID token from the Auth emulator
+$token = $(npm run -s dev:token)  # prints JWT
+
+# 3. Make a request (PowerShell example)
+$body = @{ text = "Test dump"; allow_handmade = $false; gift_mode = $false } | ConvertTo-Json
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:5001/<project-id>/us-central1/api_generateListingFromDump" `
+  -Headers @{ Authorization = "Bearer $token" } `
+  -ContentType "application/json" -Body $body
+```
+
+The request should return either `200 OK` (mock path) or a validation error (422) but **never** `401` or CORS issues.
+
 ## 🏗️ Architecture Overview
 
 ### Backend (Firebase Functions)

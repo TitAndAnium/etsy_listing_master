@@ -58,7 +58,9 @@ module.exports = async function api_generateListingFromDump(req, res) {
     const { text = "", allow_handmade = false, gift_mode = false } = body;
     if (!text.trim()) return res.status(400).json({ error: "Invalid or empty input." });
 
-    const result = await generateFromDumpCore(text, "unknown", { allow_handmade, gift_mode });
+    const uid = req.user?.uid || "unknown";
+
+    const result = await generateFromDumpCore(text, uid, { allow_handmade, gift_mode });
 
     if (result?.error) {
       return res

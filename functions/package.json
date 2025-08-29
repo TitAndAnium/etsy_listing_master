@@ -3,11 +3,13 @@
   "description": "Cloud Functions for Firebase",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
+    "emul:func": "firebase emulators:start --only functions,auth,firestore",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "jest __tests__/validator_v4.test.js"
+    "test": "jest __tests__/validator_v4.test.js",
+    "dev:token": "node scripts/dev-get-id-token.js"
   },
   "engines": {
     "node": "20"
