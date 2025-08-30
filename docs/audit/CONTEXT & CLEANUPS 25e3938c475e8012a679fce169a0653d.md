@@ -28,7 +28,7 @@ functions/.env
 
 bevestigt dat dit punt expliciet is opgepakt. Daarnaast negeert .gitignore ook build-artifacts (`/dist`, `.next/`, etc.), logfiles, debug dumps, en zelfs specifieke projectbestanden zoals `overdrachtsprompt.txt` en analysemateriaal. Dit voorkomt dat testresultaten of prompt-archieven per ongeluk worden gedeeld【27†】. In `functions/.gitignore` staat alleen `node_modules/` en `*.local`, wat gebruikelijk is – `.env` in functions wordt al door root .gitignore gedekt.
 
-We hebben gecontroleerd of er geen gevoelige config-bestanden ongemerkt meegecommit zijn. Alles ziet er schoon uit: geen private keys, geen service-account JSON’s, etc. Wel staat de Stripe CLI binary niet in .gitignore (de *.exe), maar dat is een keuze; die bevat op zich geen secret.
+We hebben gecontroleerd of er geen gevoelige config-bestanden ongemerkt meegecommit zijn. Alles ziet er schoon uit: geen private keys, geen service-account JSON’s, etc. Wel staat de Stripe CLI binary niet in .gitignore (de *.exe), maar dat is een keuze; die bevat op zich geen secret. <!-- pragma: allowlist secret -->
 
 **Aanbeveling:** Voeg voor de zekerheid ook de potentieel gegenereerde output map van de Vue app toe (bijv. `frontend/dist/` of dergelijke, indien van toepassing – al staat `dist/` al in .gitignore【27†】). Controleer of er nergens secrets hardcoded zijn die buiten .env vallen (onze scan heeft niks gevonden). Tot slot, bij release, zorg dat er geen per ongeluk lokale .env in de deploy belandt – gebruik CI secrets of Firebase config voor productie. De huidige opzet gebruikt `functions.config()` voor Stripe keys e.d., wat prima is mits correct ingesteld.
 
