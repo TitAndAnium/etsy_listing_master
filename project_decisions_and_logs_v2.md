@@ -2,6 +2,12 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### ✅ [2025-08-30] QS-15 gemerged in main (CI groen)
+- **What**: Feature-branch `fix/auth-credits-rules-v2_3_1` samengevoegd; credits-guard Firestore live, CI-checks groen.
+- **Why**: Functionele oplevering + stabiele pipeline.
+- **Owner**: Cascade (Windsurf)
+
+---
 ### ✅ [2025-08-30] QS-15 — Per-user credits guard (Firestore) live
 - **What**:
   - Geïntegreerd Firestore-transacties in `generateFromDumpCore.js` via `ensureCredits/consumeCredits` met `todayIso`.
