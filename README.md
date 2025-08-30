@@ -109,6 +109,32 @@ Invoke-RestMethod -Method Post `
 
 The request should return either `200 OK` (mock path) or a validation error (422) but **never** `401` or CORS issues.
 
+### 💳 Credits (Firestore-modus)
+1. Zet in `functions/.env`:
+   ```bash
+   DAILY_CREDITS=500   # of kleiner voor tests
+   USE_FIRESTORE_CREDITS=1
+   ```
+2. Start de emulators:
+   ```powershell
+   cd functions
+   npm run emul:func
+   ```
+3. Haal een JWT-token op:
+   ```powershell
+   $token = $(npm run -s dev:token)
+   ```
+4. Doe een call; het credits-saldo wordt nu **transactioneel** in Firestore beheerd:
+   ```powershell
+   $body = @{ text = "Houten sieradendoos" } | ConvertTo-Json
+   Invoke-RestMethod -Method Post `
+     -Uri "http://127.0.0.1:5001/<project-id>/us-central1/api_generateListingFromDump" `
+     -Headers @{ Authorization = "Bearer $token" } `
+     -ContentType "application/json" -Body $body
+   ```
+   
+🤔 Bij overschrijding van het daglimiet (`DAILY_CREDITS`) retourneert de API `429 Daily credits exhausted`.
+
 ## 🏗️ Architecture Overview
 
 ### Backend (Firebase Functions)

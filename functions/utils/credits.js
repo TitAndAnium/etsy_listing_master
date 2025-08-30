@@ -1,8 +1,32 @@
 // functions/utils/credits.js
+// Wrapper that delegates to in-memory or Firestore store based on env flag
+
+const USE_FS = process.env.USE_FIRESTORE_CREDITS === '1';
+
+let store;
+if (USE_FS && !process.env.JEST_WORKER_ID) {
+  store = require('./creditsStoreFirestore');
+} else {
+  store = null; // will fall back to local implementation below
+}
+
 const dayKey = () => new Date().toISOString().slice(0, 10);
 const IS_TEST = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID;
 const defaultLimit = () =>
   parseInt(process.env.DAILY_CREDITS || process.env.DEFAULT_USER_CREDITS || '500', 10);
+
+// When using Firestore store, export thin wrappers
+if (store) {
+  module.exports = {
+    ensureCredits: (uid, todayIso = dayKey()) => store.ensureCredits(uid, defaultLimit(), todayIso),
+    consumeCredits: (uid, amount, todayIso = dayKey()) =>
+      store.consumeCredits(uid, amount, defaultLimit(), todayIso),
+    getBalance: (uid, todayIso = dayKey()) => store.getBalance(uid, defaultLimit(), todayIso),
+  };
+  return; // stop processing in-memory path
+}
+
+// ---- In-memory fallback (tests / local mock) ----
 
 // internal state (in-memory buckets)
 const mem = {};

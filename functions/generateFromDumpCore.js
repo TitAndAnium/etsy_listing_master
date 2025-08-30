@@ -104,6 +104,7 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
   const options = normalizeOptions(optionsOrRunId, maybePersona);
   const { runId = "manual-run", personaLevel = 3, allow_handmade = false, gift_mode = false } = options;
   const start = Date.now();
+  const todayIso = new Date().toISOString().slice(0, 10);
   let qualityScore = null; // ensure defined for later runSummary even if validation fails
   // ---- Budget pre-check ----
   const budget = await precheck();
@@ -111,7 +112,7 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
     return { status: 429, error: 'Dagbudget bereikt. Probeer later opnieuw.' };
   }
   // ---- Credits pre-check ----
-  const creditInfo = await ensureCredits(uid);
+  const creditInfo = await ensureCredits(uid, todayIso);
   if (creditInfo.remaining <= 0) {
     return { status: 429, error: 'Daily credits exhausted' };
   }
@@ -422,7 +423,7 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         }
         const titleCost = estimateCost(model, tokens_in, tokens_out);
         await addCost(titleCost);
-        const titleCredit = await consumeCredits(uid, titleCost);
+        const titleCredit = await consumeCredits(uid, titleCost, todayIso);
         if (!titleCredit.ok) {
           return { status: 429, error: 'Daily credits exhausted' };
         }
@@ -554,7 +555,7 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         }
         const tagsCost = estimateCost(model, tokens_in, tokens_out);
         await addCost(tagsCost);
-        const tagsCredit = await consumeCredits(uid, tagsCost);
+        const tagsCredit = await consumeCredits(uid, tagsCost, todayIso);
         if (!tagsCredit.ok) {
           return { status: 429, error: 'Daily credits exhausted' };
         }
@@ -672,7 +673,7 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         }
         const descCost = estimateCost(model, tokens_in, tokens_out);
         await addCost(descCost);
-        const descCredit = await consumeCredits(uid, descCost);
+        const descCredit = await consumeCredits(uid, descCost, todayIso);
         if (!descCredit.ok) {
           return { status: 429, error: 'Daily credits exhausted' };
         }
