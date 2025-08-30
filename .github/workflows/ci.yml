@@ -52,8 +52,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install global tools
-        run: npm i -g firebase-tools@latest
+      - name: Install global tools (firebase-tools + wait-on)
+        run: npm i -g firebase-tools@latest wait-on
 
       - name: Install deps (root/functions/frontend)
         run: |
@@ -61,10 +61,55 @@ jobs:
           cd functions && npm ci && cd ..
           cd frontend && npm ci && cd ..
 
-      - name: Start Firebase emulators (functions + firestore)
+      - name: Start emulators (bg)
+        env:
+          CI: true
         run: |
-          firebase emulators:start --only functions,firestore --project etsy-ai-hacker > emulators.log 2>&1 &
+          # Start functions, auth en firestore in de achtergrond
+          firebase emulators:start --only functions,auth,firestore --project etsy-ai-hacker > emulators.log 2>&1 &
           echo $! > emu.pid
+          # Wacht tot Auth (9099) en Functions (5001) luisteren
+          wait-on tcp:127.0.0.1:9099 tcp:127.0.0.1:5001
+
+      - name: Obtain auth token (Auth emulator)
+        env:
+          FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+        run: |
+          # Retry tot de emulator echt klaar is
+          for i in $(seq 1 30); do
+            set +e
+            TOKEN=$(node functions/scripts/dev-get-id-token.js)
+            RC=$?
+            set -e
+            if [ $RC -eq 0 ] && [ -n "$TOKEN" ]; then
+              echo "AUTH_TOKEN=$TOKEN" >> $GITHUB_ENV
+              echo "✅ Token verkregen"
+              break
+            fi
+            echo "⏳ Auth emulator nog niet klaar (poging $i)"; sleep 2
+          done
+          test -n "$TOKEN"  # faal als nog leeg
+
+      - name: Smoke ping (curl loop met Bearer)
+        env:
+          AUTH_TOKEN: ${{ env.AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
+          echo "⏳ Wachten tot $URL 200/422 geeft (timeout 120s)..."
+          for i in $(seq 1 120); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+                     -H "Authorization: Bearer $AUTH_TOKEN" \
+                     -H 'Content-Type: application/json' \
+                     -d '{"text":"smoke test","allow_handmade":true,"gift_mode":false}' "$URL" \
+                     || echo "000")
+            echo "  poging $i ⇒ HTTP $CODE"
+            if [ "$CODE" = "200" ] || [ "$CODE" = "422" ]; then
+              echo "✅ Backend up (HTTP $CODE)"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Backend niet bereikbaar (laatste HTTP $CODE)"; exit 1
 
       - name: Build frontend
         working-directory: frontend
@@ -102,29 +147,6 @@ jobs:
           command -v ss >/dev/null && ss -lntp || true
           ps -ef | grep -i -E 'vite|node' | grep -v grep || true
           exit 1
-
-      - name: Obtain auth token (Auth emulator)
-        run: |
-          TOKEN=$(node functions/scripts/dev-get-id-token.js)
-          echo "AUTH_TOKEN=$TOKEN" >> $GITHUB_ENV
-
-      - name: Smoke ping (curl loop)
-        env:
-          AUTH_TOKEN: ${{ env.AUTH_TOKEN }}
-        run: |
-          set -euo pipefail
-          URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
-          echo "⏳ Wachten tot $URL 200/422 geeft (timeout 120s)..."
-          for i in $(seq 1 120); do
-            CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AUTH_TOKEN" -H 'Content-Type: application/json' \
-                   -d '{"text":"smoke test","allow_handmade":true}' "$URL" || echo "000")
-            echo "  poging $i ⇒ HTTP $CODE"
-            if [[ "$CODE" == "200" || "$CODE" == "422" ]]; then
-              echo "✅ Backend up (HTTP $CODE)"; exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::Backend niet bereikbaar (laatste HTTP $CODE)"; exit 1
 
       - name: Run Cypress headless
         working-directory: frontend
