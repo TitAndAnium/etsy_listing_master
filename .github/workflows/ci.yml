@@ -103,13 +103,20 @@ jobs:
           ps -ef | grep -i -E 'vite|node' | grep -v grep || true
           exit 1
 
+      - name: Obtain auth token (Auth emulator)
+        run: |
+          TOKEN=$(node functions/scripts/dev-get-id-token.js)
+          echo "AUTH_TOKEN=$TOKEN" >> $GITHUB_ENV
+
       - name: Smoke ping (curl loop)
+        env:
+          AUTH_TOKEN: ${{ env.AUTH_TOKEN }}
         run: |
           set -euo pipefail
           URL="http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump"
           echo "⏳ Wachten tot $URL 200/422 geeft (timeout 120s)..."
           for i in $(seq 1 120); do
-            CODE=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AUTH_TOKEN" -H 'Content-Type: application/json' \
                    -d '{"text":"smoke test","allow_handmade":true}' "$URL" || echo "000")
             echo "  poging $i ⇒ HTTP $CODE"
             if [[ "$CODE" == "200" || "$CODE" == "422" ]]; then
