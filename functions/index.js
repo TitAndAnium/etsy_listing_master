@@ -15,6 +15,7 @@ const generateFromDumpCore = require("./generateFromDumpCore");
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const withAuth = require('./utils/authMiddleware');
 
 // Initialize Firebase Admin SDK (idempotent)
 try { admin.app(); } catch (e) { admin.initializeApp(); }
@@ -138,13 +139,13 @@ async function handleStripeWebhook(req, res) {
   }
 }
 
-exports.api_generateListingFromDump = functions.https.onRequest((req, res) => {
+exports.api_generateListingFromDump = functions.https.onRequest(withAuth((req, res) => {
   cors(req, res, () => api_generateListingFromDump(req, res));
-});
+}));
 
-exports.api_generateChainingFromFields = functions.https.onRequest((req, res) => {
+exports.api_generateChainingFromFields = functions.https.onRequest(withAuth((req, res) => {
   cors(req, res, () => api_generateChainingFromFields(req, res));
-});
+}));
 
 exports.generateFromDumpCore = require('./http_generateFromDumpCore').generateFromDumpCore;
 

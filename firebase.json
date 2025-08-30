@@ -8,6 +8,7 @@
     "hub": { "port": 4400 },
     "ui": { "enabled": true, "port": 4001 },
     "functions": { "port": 5001, "host": "127.0.0.1" },
+    "auth": { "port": 9099, "host": "127.0.0.1" },
     "firestore": { "port": 8089, "host": "127.0.0.1" },
     "singleProjectMode": true
   }

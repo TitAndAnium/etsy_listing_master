@@ -2,7 +2,28 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
-### 📝 [2025-08-28] QS-15b — Credits documentatie toegevoegd
+### ✅ [2025-08-30] QS-15 — Per-user credits guard (Firestore) live
+- **What**:
+  - Geïntegreerd Firestore-transacties in `generateFromDumpCore.js` via `ensureCredits/consumeCredits` met `todayIso`.
+  - Nieuwe integratietest `__tests__/credits.emu.test.js` (geskipt in CI) voor end-to-end credit-verbruik.
+  - README uitgebreid met sectie “Credits (Firestore-modus)”.
+- **Why**: Persistente, atomaal beveiligde dagcredits voor gebruikers; voorkomt race-conditions en multi-device inconsistenties.
+- **Impact**: API retourneert 429 bij limietoverschrijding; devs kunnen lokaal testen met emulators.
+- **Owner**: Cascade (Windsurf)
+
+---
+### ✅ [2025-08-29] QS-A1 — Auth hardened + Emulator token harness
+- **What**:
+  - Added `OPTIONS` bypass in `authMiddleware.js` to fix CORS preflight.
+  - Created `scripts/dev-get-id-token.js` and npm scripts `emul:func`, `dev:token`.
+  - Enabled Auth emulator in `firebase.json`.
+  - Updated README with local testing instructions.
+- **Why**: Secure endpoints while allowing local dev testing without hacks.
+- **Impact**: CORS preflight 204 OK; authenticated POSTs validated; seamless local testing flow.
+- **Owner**: Cascade (Windsurf)
+
+---
+### ✅ [2025-08-28] QS-15b — Credits documentatie toegevoegd
 - **What**: README.md credits-sectie geschreven en CHANGELOG.md aangemaakt ([Unreleased]) met runtime DAILY_CREDITS en _resetTestState details.
 - **Why**: Documentatie bijhouden voor devs en reviewers.
 - **Impact**: Geen code; onboarding duidelijker.
