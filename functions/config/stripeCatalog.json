@@ -1,20 +1,5 @@
 {
-  "price_basic_monthly": {
-    "credits": 1000,
-    "currency": "eur",
-    "amount_cents": 500,
-    "product": "basic_monthly"
-  },
-  "price_pro_monthly": {
-    "credits": 3000,
-    "currency": "eur",
-    "amount_cents": 1200,
-    "product": "pro_monthly"
-  },
-  "price_basic_once": {
-    "credits": 500,
-    "currency": "eur",
-    "amount_cents": 300,
-    "product": "basic_oneoff"
-  }
+    "price_1S27IAK2qdxmyPrLL7ALKbkX": { "credits": 1000, "currency": "eur", "amount_cents": 500,  "product": "basic_monthly" },
+    "price_1S27RfK2qdxmyPrLXm9RWvWg": { "credits": 3000, "currency": "eur", "amount_cents": 1200, "product": "pro_monthly"   },
+    "price_1S27TMK2qdxmyPrLpCvdPmTG": { "credits":  500, "currency": "eur", "amount_cents": 300,  "product": "basic_oneoff" }
 }
