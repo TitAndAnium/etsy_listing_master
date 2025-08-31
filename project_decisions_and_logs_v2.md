@@ -2,6 +2,36 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🚧 [2025-08-31] A3-2/A3-3 — Stripe webhook hardening + idempotency & unit test
+- **What**:
+  - Webhook-handler (`functions/index.js`) herschreven:
+    * Volledige sessie + line_items ophalen en valideren tegen catalogus (bedrag, valuta, priceId).
+    * Idempotency Firestore doc `stripe_events/{eventId}`.
+    * Creditsboeking nu `plan.credits` in plaats van `amount_cents/100`.
+  - Nieuwe unit-test `functions/__tests__/stripeCatalog.unit.test.js` dekt `getPlanByPriceId()`.
+  - README: sectie “Stripe (testmodus) – lokaal” met stappen en curl voorbeeld.
+- **Why**: Verhindert bedragmanipulatie, dubbeltellingen en garandeert correcte credit-toekenning.
+- **Next**:
+  1) Wallet & ledger implementatie.
+  2) Extra webhook event-types (refunds).
+- **Owner**: Cascade (Windsurf)
+
+---
+### 🚧 [2025-08-31] A3-1 — Server-side Stripe guard & plan-catalogus util
+- **What**:
+  - Nieuw configbestand `functions/config/stripeCatalog.json` (priceId→credits, amount_cents, currency).
+  - Utility `functions/utils/stripeCatalog.js` met `getPlanByPriceId()`.
+  - `api_createCheckoutSession` (in `functions/index.js`) hard-guard: valideert aangeleverde `priceId`, controleert bedrag/valuta tegen catalogus, gebruikt vaste `line_items: [{ price, quantity:1 }]`.
+  - Metadata nu `{ uid, priceId }` i.p.v. credits, voor latere webhook-lookup.
+  - Webhook `checkout.session.completed` vertaalt `priceId` naar credits via catalogus.
+- **Why**: Voorkomt manipulatie van bedrag of credits door client; centrale tariefkaart maakt onderhoud eenvoudig.
+- **Next**:
+  1) Webhook hardening (signature-leeftijd & idempotency Firestore doc)
+  2) Wallet + ledger boekingen
+  3) Unit-tests voor catalog util
+- **Owner**: Cascade (Windsurf)
+
+---
 ### ✅ [2025-08-30] QS-15 gemerged in main (CI groen)
 - **What**: Feature-branch `fix/auth-credits-rules-v2_3_1` samengevoegd; credits-guard Firestore live, CI-checks groen.
 - **Why**: Functionele oplevering + stabiele pipeline.

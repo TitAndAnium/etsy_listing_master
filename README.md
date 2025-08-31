@@ -109,6 +109,28 @@ Invoke-RestMethod -Method Post `
 
 The request should return either `200 OK` (mock path) or a validation error (422) but **never** `401` or CORS issues.
 
+### 💳 Stripe (testmodus) – lokaal
+1. Configureer Stripe secrets lokaal (emulators):
+   ```json
+   {
+     "stripe": { "secret": "sk_test_…", "webhook_secret": "whsec_…" },
+     "app": { "base_url": "http://localhost:5173" }
+   }
+   ```
+   Plaats dit in `functions/.runtimeconfig.json` of via `firebase functions:config:set`.
+2. Start de emulators:
+   ```bash
+   cd functions
+   npm run emul:func
+   ```
+3. Maak een Checkout-sessie (client stuurt alléén `priceId`):
+   ```bash
+   curl -X POST http://127.0.0.1:5001/<project-id>/us-central1/api_createCheckoutSession \
+     -H "Content-Type: application/json" \
+     -d '{"priceId":"price_basic_monthly"}'
+   ```
+4. Rond de testbetaling af; de webhook crediteert nu `plan.credits` in `users/<uid>`.
+
 ### 💳 Credits (Firestore-modus)
 1. Zet in `functions/.env`:
    ```bash

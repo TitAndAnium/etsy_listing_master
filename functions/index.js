@@ -16,6 +16,7 @@ const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
 const withAuth = require('./utils/authMiddleware');
+const { getPlanByPriceId } = require('./utils/stripeCatalog');
 
 // Initialize Firebase Admin SDK (idempotent)
 try { admin.app(); } catch (e) { admin.initializeApp(); }
@@ -47,21 +48,28 @@ async function handleCreateCheckoutSession(req, res) {
   if (!Stripe) return sendJson(res, 500, { error: 'Stripe is not configured' });
 
   try {
-    const { uid, credits = 100, amount_cents = 500 } = req.body || {};
-    if (!uid) return sendJson(res, 400, { error: 'Missing uid' });
+    const body = req.body || {};
+    const priceId = body.priceId || body.price_id;
+    if (!priceId) return sendJson(res, 400, { error: 'priceId ontbreekt' });
+
+    const plan = getPlanByPriceId(priceId);
+    if (!plan) return sendJson(res, 400, { error: 'Onbekende prijs (niet in catalog)' });
+
+    // Optionele double-checks als client toch bedrag/valuta meestuurt
+    if (body.amount_cents && Number(body.amount_cents) !== Number(plan.amount_cents)) {
+      return sendJson(res, 422, { error: 'Bedrag mismatch t.o.v. catalog' });
+    }
+    if (body.currency && String(body.currency).toLowerCase() !== String(plan.currency).toLowerCase()) {
+      return sendJson(res, 422, { error: 'Valuta mismatch t.o.v. catalog' });
+    }
+
+    const uid = req.user?.uid || body.uid || null; // fallback
 
     const session = await Stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          unit_amount: Number(amount_cents),
-          product_data: { name: `${credits} Credits Pack` }
-        },
-        quantity: 1
-      }],
-      metadata: { uid, credits: String(credits) },
+      line_items: [{ price: priceId, quantity: 1 }],
+      client_reference_id: uid || undefined,
+      metadata: { uid: uid || '', priceId },
       success_url: `${appBaseUrl}/?checkout=success`,
       cancel_url: `${appBaseUrl}/?checkout=cancel`,
     });
@@ -119,18 +127,63 @@ async function handleStripeWebhook(req, res) {
 
   try {
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const uid = session.metadata?.uid;
-      const creditsToAdd = Number(session.metadata?.credits || 0);
-      if (uid && creditsToAdd > 0) {
-        const userRef = db.collection('users').doc(uid);
-        await db.runTransaction(async (tx) => {
-          const doc = await tx.get(userRef);
-          const current = doc.exists ? (doc.data().credits || 0) : 0;
-          tx.set(userRef, { credits: current + creditsToAdd }, { merge: true });
-        });
-        console.log(`Credited ${creditsToAdd} to ${uid}`);
+      // 1) Retrieve full session incl. line_items for validation
+      const base = event.data.object;
+      const session = await Stripe.checkout.sessions.retrieve(base.id, {
+        expand: ['line_items.data.price'],
+      });
+
+      const uidMeta   = session.metadata?.uid || null;
+      const priceIdMd = session.metadata?.priceId || null;
+      const item      = session.line_items?.data?.[0] || null;
+      const priceObj  = item?.price || null;
+      const priceId   = priceObj?.id || null;
+
+      if (!priceObj || !priceId) {
+        return res.status(400).send('Missing line_items/price on session');
       }
+
+      // 2) Validate against catalog
+      const plan = getPlanByPriceId(priceId);
+      if (!plan) return res.status(400).send('Price not in catalog');
+
+      if (priceIdMd && priceIdMd !== priceId) {
+        return res.status(422).send('priceId mismatch between metadata and line_items');
+      }
+      if (String(priceObj.currency).toLowerCase() !== String(plan.currency).toLowerCase()) {
+        return res.status(422).send('Currency mismatch');
+      }
+      if (Number(priceObj.unit_amount) !== Number(plan.amount_cents)) {
+        return res.status(422).send('Amount mismatch');
+      }
+      if (!uidMeta) {
+        return res.status(400).send('Missing uid metadata');
+      }
+
+      // 3) Idempotency guard & credit booking
+      const evtRef  = db.collection('stripe_events').doc(event.id);
+      const userRef = db.collection('users').doc(uidMeta);
+      await db.runTransaction(async (tx) => {
+        const seen = await tx.get(evtRef);
+        if (seen.exists) return; // already processed
+
+        const doc = await tx.get(userRef);
+        const current = doc.exists ? (doc.data().credits || 0) : 0;
+        tx.set(userRef, { credits: current + Number(plan.credits) }, { merge: true });
+
+        tx.set(evtRef, {
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          uid: uidMeta,
+          priceId,
+          creditsGranted: Number(plan.credits),
+          amount_cents: Number(plan.amount_cents),
+          currency: String(plan.currency).toLowerCase(),
+          sessionId: session.id,
+          eventType: event.type,
+        });
+      });
+
+      console.log(`Credited ${Number(plan.credits)} credits to ${uidMeta} (plan=${priceId})`);
     }
     return res.status(200).send('[ok]');
   } catch (err) {
