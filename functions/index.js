@@ -21,6 +21,8 @@ const { getPlanByPriceId } = require('./utils/stripeCatalog');
 // Initialize Firebase Admin SDK (idempotent)
 try { admin.app(); } catch (e) { admin.initializeApp(); }
 const db = admin.firestore();
+// Losse FieldValue import nodig: admin.firestore.FieldValue bestaat niet meer sinds v12
+const { FieldValue } = require('firebase-admin/firestore');
 
 // Stripe setup from env config
 // Local fallback: read functions/.runtimeconfig.json when emulator doesn't load config
@@ -65,8 +67,12 @@ async function handleCreateCheckoutSession(req, res) {
 
     const uid = req.user?.uid || body.uid || null; // fallback
 
+    // Bepaal sessie-modus (payment vs subscription) obv het type prijs
+    const priceObj = await Stripe.prices.retrieve(priceId);
+    const sessionMode = priceObj.type === 'recurring' ? 'subscription' : 'payment';
+
     const session = await Stripe.checkout.sessions.create({
-      mode: 'payment',
+      mode: sessionMode,
       line_items: [{ price: priceId, quantity: 1 }],
       client_reference_id: uid || undefined,
       metadata: { uid: uid || '', priceId },
@@ -133,7 +139,8 @@ async function handleStripeWebhook(req, res) {
         expand: ['line_items.data.price'],
       });
 
-      const uidMeta   = session.metadata?.uid || null;
+      // Fallback op client_reference_id indien metadata.uid ontbreekt (robuustheid)
+      const uidMeta   = session.metadata?.uid || session.client_reference_id || null;
       const priceIdMd = session.metadata?.priceId || null;
       const item      = session.line_items?.data?.[0] || null;
       const priceObj  = item?.price || null;
@@ -161,6 +168,7 @@ async function handleStripeWebhook(req, res) {
       }
 
       // 3) Idempotency guard & credit booking
+      console.log('🪙 credit booking', { uid: uidMeta, priceId, credits: plan.credits });
       const evtRef  = db.collection('stripe_events').doc(event.id);
       const userRef = db.collection('users').doc(uidMeta);
       await db.runTransaction(async (tx) => {
@@ -172,7 +180,7 @@ async function handleStripeWebhook(req, res) {
         tx.set(userRef, { credits: current + Number(plan.credits) }, { merge: true });
 
         tx.set(evtRef, {
-          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          processedAt: FieldValue.serverTimestamp(),
           uid: uidMeta,
           priceId,
           creditsGranted: Number(plan.credits),
