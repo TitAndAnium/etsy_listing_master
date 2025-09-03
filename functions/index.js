@@ -17,6 +17,8 @@ const fs = require('fs');
 const path = require('path');
 const withAuth = require('./utils/authMiddleware');
 const { getPlanByPriceId } = require('./utils/stripeCatalog');
+// A3-4: wallet util voor ledger-mutaties
+const { bookStripeCreditTx, spendCreditsTx } = require('./utils/wallet');
 
 // Initialize Firebase Admin SDK (idempotent)
 try { admin.app(); } catch (e) { admin.initializeApp(); }
@@ -167,17 +169,22 @@ async function handleStripeWebhook(req, res) {
         return res.status(400).send('Missing uid metadata');
       }
 
-      // 3) Idempotency guard & credit booking
-      console.log('🪙 credit booking', { uid: uidMeta, priceId, credits: plan.credits });
+      // 3) Idempotency guard & credit booking + ledger
       const evtRef  = db.collection('stripe_events').doc(event.id);
-      const userRef = db.collection('users').doc(uidMeta);
       await db.runTransaction(async (tx) => {
         const seen = await tx.get(evtRef);
         if (seen.exists) return; // already processed
 
-        const doc = await tx.get(userRef);
-        const current = doc.exists ? (doc.data().credits || 0) : 0;
-        tx.set(userRef, { credits: current + Number(plan.credits) }, { merge: true });
+        // Ledger + balance update
+        await bookStripeCreditTx(tx, db, {
+          uid: uidMeta,
+          eventId: event.id,
+          sessionId: session.id,
+          priceId,
+          credits: Number(plan.credits),
+          amount_cents: Number(plan.amount_cents),
+          currency: String(plan.currency),
+        });
 
         tx.set(evtRef, {
           processedAt: FieldValue.serverTimestamp(),
@@ -191,7 +198,7 @@ async function handleStripeWebhook(req, res) {
         });
       });
 
-      console.log(`Credited ${Number(plan.credits)} credits to ${uidMeta} (plan=${priceId})`);
+      console.log(`🧾 ledger + credited ${Number(plan.credits)} to ${uidMeta} (plan=${priceId})`);
     }
     return res.status(200).send('[ok]');
   } catch (err) {
@@ -217,6 +224,74 @@ exports.api_createCheckoutSession = functions.https.onRequest((req, res) => {
 
 exports.api_getUserCredits = functions.https.onRequest((req, res) => {
   cors(req, res, () => handleGetUserCredits(req, res));
+});
+
+// Wallet endpoint
+async function handleGetWallet(req, res) {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const m = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!m) return sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
+
+    let decoded;
+    try { decoded = await admin.auth().verifyIdToken(m[1]); }
+    catch (e) { console.error('verifyIdToken failed', e); return sendJson(res, 401, { error: 'Invalid ID token' }); }
+
+    const uid = decoded.uid;
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    const credits = userDoc.exists ? (userDoc.data().credits || 0) : 0;
+
+    const qSnap = await db.collection('wallet_ledger')
+      .where('uid', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+
+    const ledger = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return sendJson(res, 200, { uid, credits, ledger });
+  } catch (err) {
+    console.error('api_getWallet error', err);
+    return sendJson(res, 500, { error: 'Internal error' });
+  }
+}
+
+exports.api_getWallet = functions.https.onRequest((req, res) => {
+  cors(req, res, () => handleGetWallet(req, res));
+});
+
+// Wallet: credits uitgeven
+async function handleSpendCredits(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+  try {
+    const authHeader = req.headers.authorization || '';
+    const m = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!m) return sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
+
+    let decoded;
+    try { decoded = await admin.auth().verifyIdToken(m[1]); }
+    catch { return sendJson(res, 401, { error: 'Invalid ID token' }); }
+
+    const { amount, reason, requestId } = req.body || {};
+    const uid = decoded.uid;
+
+    await db.runTransaction(async (tx) => {
+      await spendCreditsTx(tx, db, { uid, credits: Number(amount), reason, requestId });
+    });
+
+    const after = await db.collection('users').doc(uid).get();
+    const credits = after.exists ? (after.data().credits || 0) : 0;
+    return sendJson(res, 200, { uid, credits });
+  } catch (err) {
+    const code = (err && (err.code === 400 || err.code === 422)) ? err.code : 500;
+    const msg  = code === 422 ? 'Insufficient credits' : (code === 400 ? 'Bad request' : 'Internal error');
+    console.error('api_spendCredits error', err);
+    return sendJson(res, code, { error: msg });
+  }
+}
+
+exports.api_spendCredits = functions.https.onRequest((req, res) => {
+  cors(req, res, () => handleSpendCredits(req, res));
 });
 
 // Webhook: no CORS, raw body needed
