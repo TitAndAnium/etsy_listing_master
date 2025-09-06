@@ -2,6 +2,70 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🔧 [2025-09-06 19:57] Git merge conflicts opgelost + deploy-voorbereiding
+- **What**: Opgeruimd: dubbele `const priceObj` declaraties, git merge markers, en inconsistente webhook-logica in `functions/index.js`.
+- **Why**: Deploy faalde door syntax errors na incomplete merge. Code bevatte zowel oude als nieuwe webhook-implementatie.
+- **Result**: Clean codebase klaar voor cloud-deploy. Firebase functions:config bevat nu echte Stripe test-keys.
+
+### 🐛 [2025-09-06 09:06] Fix gecorrumpeerde TEST_ALLOW_CLI_CHECKOUT env-variabele
+- **What**: In `functions/.env` stond `TEST_ALLOW_CLI_CHECKOUT=1TEST_ALLOW_CLI_CHECKOUT=1` (dubbel), waardoor Functions-emulator de waarde las als `'1TEST_ALLOW_CLI_CHECKOUT=1'` i.p.v. `'1'`.
+- **Why**: Dit zorgde ervoor dat `isCliTest` altijd `false` bleef, ondanks correcte `metadata.testing='cli'`. CLI-bypass werkte niet.
+- **Result**: Na fix naar `TEST_ALLOW_CLI_CHECKOUT=1` en emulator-herstart werkt de Stripe CLI-bypass correct.
+
+### ✅ [2025-09-06 09:09] Headless Stripe CLI-bypass flow succesvol geïmplementeerd
+- **What**: Volledige headless betaal- en walletflow via `stripe trigger` werkt nu correct. Debug-logs tonen `envFlag: '1'`, `isCliTest: true`, en `CLI test-bypass actief`.
+- **Why**: Na fix van gecorrumpeerde env-variabele kunnen lokale tests volledig headless draaien zonder browser-checkout.
+- **Result**: `stripe trigger checkout.session.completed` → webhook 200 → +1000 credits geboekt → ledger-entry zichtbaar in wallet.
+
+### 📝 [2025-09-05 20:20] Default TEST_ALLOW_CLI_CHECKOUT=0 in .env.example
+- **What**: Added `TEST_ALLOW_CLI_CHECKOUT=0` to `.env.example` so the Stripe CLI bypass is off by default.
+- **Why**: Prevents accidental bypass in non-test sessions; can be enabled per-shell when running `npm run test:e2e`.
+- **Result**: Safer defaults; developer can still override via env var.
+
+### 🔐 [2025-09-05 19:47] Auth op laatste generate-routes + npm script rules:exec
+- **What**:
+  1. `api_generateListingFromDump.js` vereist nu verified ID-token (`uid` uit `req.user.uid`); fallback "unknown" verwijderd.
+  2. Root `package.json` kreeg script `rules:exec` → `firebase emulators:exec --only firestore "npm run test:rules"`.
+- **Why**: Voltooit open actiepunt #1 (auth op alle generate-endpoints) en versnelt lokale rules-test.
+- **Result**: Alle generate-routes beschermd; snelle `npm run rules:exec` draait Jest‐rules op emulatorpoort 8089.
+
+### 🔄 [2025-09-05 07:25] Idempotency guard in wallet.bookStripeCreditTx
+- **What**: Added early-exit check in `utils/wallet.js` — inside Firestore transaction, verify `wallet_ledger/{stripe_<eventId>}` exists before crediting.
+- **Why**: Prevents double credit booking if Stripe resends the same event or util is called directly elsewhere.
+- **Result**: Credits and ledger remain single-entry; webhook keeps passing existing `stripe_events` guard, but util is now self-contained.
+
+### 🧪 [2025-09-04 19:43] Align rules tests with emulator port 8089
+- **What**: Updated `firestoreRules.emu.test.js` to connect to Firestore emulator at `127.0.0.1:8089`, matching `firebase.json`.
+- **Why**: Previous hard-coded 8080 pointed to another service (`sabnzbd`) causing HTML redirect and test failures.
+- **Result**: `npm run test:rules` passes via `firebase emulators:exec` or manual start.
+
+### 🐞 [2025-09-04 19:32] Fix rules-test deps pin
+- **What**: Pinned dev-deps to `@firebase/rules-unit-testing@3.0.0` and `jest@^29.7.0` in `package.json`.
+- **Why**: Latest (30+) Jest brak compat met Firestore rules tester; ^3.23.0 tag bestaat niet ➜ ETARGET. Pinnen herstelt `npm i` en `npm run test:rules`.
+- **Result**: `npm ls @firebase/rules-unit-testing` OK, rules-test suite draait groen.
+
+### 🔒 [2025-09-04 19:18] Auth & Firestore Rules hardening
+- **What**:
+  1. Alle generate-routes (`http_generateFromDumpCore`) en `api_createCheckoutSession` nu beveiligd met `withAuth` middleware (ID-token verplicht).
+  2. Firestore Security Rules uitgebreid: 
+     - `users/{userId}` owner-only `read,write`.
+     - `wallet_ledger/{txId}` alleen toegankelijk voor bediening (`admin==true`).
+- **Why**: Sluit laatste ongeauthenticeerde endpoints en schermt gevoelige data af.
+- **Result**: Headless rooktest blijft groen; onbevoegde requests krijgen 401/permission-denied.
+
+### 🧪 [2025-09-04 18:28] CLI-testbypass voor Stripe rooktests
+- **What**: Implementatie van een optionele test-bypass in `functions/index.js` waardoor `checkout.session.completed`-events uit de Stripe CLI direct worden vertrouwd wanneer `TEST_ALLOW_CLI_CHECKOUT=1`.   
+  - Detectie via `metadata.testing=cli` en env-flag.  
+  - Fallback `line_items` injectie + currency & amount uit catalogus indien afwezig.  
+  - `scripts/local-e2e.ps1` voegt nu automatisch `testing=cli` toe.
+- **Why**: Maakt volledig headless end-to-end test (`npm run test:e2e`) mogelijk zonder browser, terwijl productie-pad strak blijft valideren.
+- **Result**: Eén commando ↔ credits geboekt, wallet geüpdatet, debit getest.
+
+### ✨ [2025-09-03 08:12] A3-4 Wallet & Ledger MVP
+- **What**: Toegevoegd `functions/utils/wallet.js` (ledger util) en geïntegreerd in `functions/index.js`; nieuwe endpoint `api_getWallet` voor credits + laatste 10 ledger items.
+- **Why**: Biedt audittrail en veilige wallet-opvraag volgens requirements A3-4/A3-5.
+- **Result**: Atomaire creditboekingen mét ledger, nieuwe API retourneert saldo en transacties.
+
 ### 🛠️ [2025-09-03 07:38] A3-3 hotfix — webhook leest uid uit metadata óf client_reference_id
 - **What**: In `functions/index.js` valt `uidMeta` nu terug op `session.client_reference_id` wanneer `metadata.uid` ontbreekt.  
 - **Why**: Voorkomt mismatch waardoor credits werden geboekt onder ander uid en read-endpoint 0 teruggaf.  
@@ -343,8 +407,9 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 • Selectors volgen de standaard: `badge-{field}-{status}` en `btn-copy-all`.
 
 **Resultaat**  
-• Preview-runs zijn stabiel en groen (samen met `copy_gate` en `prompt-version-validation`).  
-• Volledige keten blijft mogelijk in de “full” omgeving zonder de preview-cyclus te verstoren.
+• Test 1: enables Copy All when no errors → badges: `title ok`, `tags ok`, `description ok`, knop enabled.  
+• Test 2: disables Copy All on high-severity error → `tags error`, `title ok`, `description ok`, knop disabled.  
+• Console toonde `Raw API response` en `Processed data` conform mock.
 
 👤 Actiehouder: Cascade
 

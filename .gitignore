@@ -12,7 +12,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 firebase-debug*.log
-firestore-debug.log
+firestore-debug*.log
 
 # Runtime data / pids
 pids
@@ -36,20 +36,32 @@ node_modules/
 coverage/
 .nyc_output
 lib-cov
+frontend/cypress/screenshots/
+frontend/cypress/videos/
 
 ############################
 #  Firebase
 ############################
 .firebase/
-.firebaserc
 .runtimeconfig.json
 .functions-cache/
+# .firebaserc NIET negeren; commit deze juist voor consistente project-aliases
 
 ############################
 #  Environment variables
 ############################
+# ignore all real env files (keep examples below)
 .env
+.env.*
 functions/.env
+functions/.env.*
+frontend/.env
+frontend/.env.*
+
+# keep the templates
+!.env.example
+!functions/.env.example
+!frontend/.env.example
 
 ############################
 #  Build output
