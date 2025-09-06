@@ -1,4 +1,4 @@
-# 🛍️ Etsy AI-Hacker
+# Etsy AI-Hacker
 
 **Production-Ready AI-Powered Etsy Listing Generator**
 
@@ -9,33 +9,33 @@ A comprehensive full-stack application that transforms raw product descriptions 
 [![Firebase](https://img.shields.io/badge/firebase-ready-orange)]()
 [![React](https://img.shields.io/badge/react-18-blue)]()
 
-## ✨ Key Features
+## Key Features
 
-### 🎯 **AI-Powered Content Generation**
+### AI-Powered Content Generation
 - **Smart Title Generation**: SEO-optimized titles with length validation (35-85 chars)
 - **Intelligent Tag Creation**: 5+ SEO tags + 1 audience tag with tri-layer structure
 - **Rich Descriptions**: 7-section format with CTA blocks and keyword integration
 - **Handmade-Flex Logic**: Toggle between "handmade" and "artisan" terminology
 
-### 🔧 **Production-Grade Architecture**
+### Production-Grade Architecture
 - **Field-by-Field Processing**: Individual retry logic and validation per field
 - **Comprehensive Validation**: 4-layer validation system (input → prompt → output → final)
 - **Quality Scoring**: Automated quality assessment with metrics tracking
 - **Robust Error Handling**: Graceful fallbacks and detailed error reporting
 
-### 🎨 **Modern Frontend**
+### Modern Frontend
 - **React 18 SPA**: Modern, responsive user interface
 - **Real-time Validation**: Live badge status updates (green/yellow/red)
 - **Copy-to-Clipboard**: One-click content copying with validation checks
 - **Collapsible Panels**: Organized content display with status indicators
 
-### 📊 **Enterprise Monitoring**
+### Enterprise Monitoring
 - **Firestore Logging**: Complete audit trail with run IDs and timestamps
 - **Performance Metrics**: Token usage, response times, and success rates
 - **Validation Tracking**: Detailed warning/error categorization
 - **E2E Test Coverage**: Comprehensive Cypress test suite
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - **Node.js 20+** (LTS recommended)
@@ -86,7 +86,22 @@ curl -X POST http://localhost:5001/etsy-ai-hacker/us-central1/api_generateListin
   -d '{"text":"handmade wooden jewelry box with velvet interior"}'
 ```
 
-## 🧪 Local Testing with Emulators
+### Wallet – credits uitgeven
+POST `api_spendCredits`
+Body: `{ "amount": <number>, "reason": "optioneel", "requestId": "optioneel idempotency key" }`
+Header: `Authorization: Bearer <ID_TOKEN>`
+
+Voorbeeld PowerShell:
+```powershell
+$body = @{ amount = 250; reason = "test"; requestId = [guid]::NewGuid().ToString() } | ConvertTo-Json
+Invoke-RestMethod -Method Post \
+  -Uri "http://127.0.0.1:5001/<project>/us-central1/api_spendCredits" \
+  -Headers @{ Authorization = "Bearer $token" } \
+  -ContentType "application/json" -Body $body
+```
+Antwoord: `{ uid, credits }` (nieuw saldo). Bij te weinig saldo: HTTP 422.
+
+## Local Testing with Emulators
 
 ```powershell
 # 1. Start emulators (functions + auth + firestore)
@@ -109,11 +124,30 @@ Invoke-RestMethod -Method Post `
 
 The request should return either `200 OK` (mock path) or a validation error (422) but **never** `401` or CORS issues.
 
-### 💳 Stripe (testmodus) – lokaal
+### Headless E2E Workflow
+Run the full payment → wallet flow with zero UI in three shells:
+
+```powershell
+# Terminal A – Functions + Firestore + Auth on localhost
+npm run emul:func            # (= firebase emulators:start --only functions,firestore,auth)
+
+# Terminal B – Stripe CLI listener
+stripe listen --forward-to http://127.0.0.1:5001/<project-id>/us-central1/stripeWebhook
+
+# Terminal C – Execute Cypress-like headless test (requires TEST_ALLOW_CLI_CHECKOUT=1 in functions/.env)
+npm run test:e2e            # creates checkout.session, grants credits, debits 250 ⇒ saldo 750
+```
+
+For quick rules validation only:
+```bash
+firebase emulators:exec --only firestore "npm run test:rules"  # runs Jest suite against 127.0.0.1:8089
+```
+
+### Stripe (testmodus) – lokaal
 1. Configureer Stripe secrets lokaal (emulators):
    ```json
    {
-     "stripe": { "secret": "sk_test_…", "webhook_secret": "whsec_…" },
+     "stripe": { "secret": "<STRIPE_SECRET_KEY>", "webhook_secret": "<STRIPE_WEBHOOK_SECRET>" },
      "app": { "base_url": "http://localhost:5173" }
    }
    ```
@@ -131,7 +165,7 @@ The request should return either `200 OK` (mock path) or a validation error (422
    ```
 4. Rond de testbetaling af; de webhook crediteert nu `plan.credits` in `users/<uid>`.
 
-### 💳 Credits (Firestore-modus)
+### Credits (Firestore-modus)
 1. Zet in `functions/.env`:
    ```bash
    DAILY_CREDITS=500   # of kleiner voor tests
@@ -157,7 +191,7 @@ The request should return either `200 OK` (mock path) or a validation error (422
    
 🤔 Bij overschrijding van het daglimiet (`DAILY_CREDITS`) retourneert de API `429 Daily credits exhausted`.
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ### Backend (Firebase Functions)
 ```
@@ -190,12 +224,12 @@ frontend/
 - **Performance Tracking**: Token usage, response times
 - **Error Monitoring**: Detailed failure analysis
 
-## 📈 Performance & Quality
+## Performance & Quality
 
 ### Test Coverage
-- ✅ **38/38 Jest Tests Passing** (100% success rate)
-- ✅ **4/4 E2E Tests Passing** (Full user journey validation)
-- ✅ **Zero High-Severity Errors** (Production-ready validation)
+- **38/38 Jest Tests Passing** (100% success rate)
+- **4/4 E2E Tests Passing** (Full user journey validation)
+- **Zero High-Severity Errors** (Production-ready validation)
 
 ### Performance Metrics
 - **API Response Time**: 9-11 seconds (AI processing)
@@ -209,7 +243,7 @@ frontend/
 - **Security**: Production-ready Firestore rules
 - **Error Handling**: Comprehensive fallback strategies
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 ```bash
@@ -250,7 +284,7 @@ MAX_TOKENS=2000
 - `_resetTestState()` bevindt zich in `functions/utils/credits.js`.
 - Wordt in `functions/__tests__/credits.test.js` aangeroepen in `beforeEach()` zodat elke spec met een schone bucket start.
 
-## 🧪 Testing
+## Testing
 
 ### Unit Tests (Jest)
 ```bash
@@ -272,14 +306,14 @@ npm run test:e2e
 3. **Database**: Check Firestore logging and metrics
 4. **Validation**: Test edge cases and error scenarios
 
-## 📚 Documentation
+## Documentation
 
 - **[Development Guide](README-DEV.md)**: Detailed setup and development workflow
 - **[Project Decisions Log](project_decisions_and_logs.md)**: Complete audit trail
 - **[API Documentation](docs/)**: Endpoint specifications and examples
 - **[Prompt Documentation](functions/prompts/)**: AI prompt versions and changes
 
-## 🚀 Deployment
+## Deployment
 
 ### Staging Deployment
 ```bash
@@ -299,7 +333,7 @@ firebase deploy --project your-production-project
 firebase functions:log --project your-production-project
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. **Fork the repository**
 2. **Create feature branch**: `git checkout -b feature/amazing-feature`
@@ -314,11 +348,11 @@ firebase functions:log --project your-production-project
 - Update documentation as needed
 - Ensure all tests pass before submitting PR
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **OpenAI GPT-4**: Core AI processing engine
 - **Firebase**: Backend infrastructure and hosting
@@ -328,30 +362,30 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Status**: ✅ Production Ready | **Version**: 3.0.4 | **Last Updated**: August 2025
+**Status**: Production Ready | **Version**: 3.0.4 | **Last Updated**: August 2025
 
 - **Emulator UI**: http://localhost:4001
 - **Firestore logs**: Navigate to runs > [runId] > logs
 - **Token tracking**: Per-field usage and retry metrics
 
-## 🚀 Production Deploy
+## Production Deploy
 
 ```bash
 firebase deploy --only functions
 firebase deploy --only firestore:indexes
 ```
 
-## 📖 Development Guide
+## Development Guide
 
 See [README-DEV.md](README-DEV.md) for detailed development setup, testing procedures, and emulator configuration.
 
-## 📝 Project Status
+## Project Status
 
-- ✅ **Deliverable 1**: Router-refactor & Prompt Upgrade (22-07-2025)
-- ✅ **Deliverable 2**: Prompt-upgrade v2.7 (23-07-2025) - Emulator validated
-- 🔄 **Deliverable 3**: Classifier-patch v3.3 (In Progress)
+- **Deliverable 1**: Router-refactor & Prompt Upgrade (22-07-2025)
+- **Deliverable 2**: Prompt-upgrade v2.7 (23-07-2025) - Emulator validated
+- **Deliverable 3**: Classifier-patch v3.3 (In Progress)
 
-## 🔧 Tech Stack
+## Tech Stack
 
 - **Runtime**: Node.js 20, Firebase Functions
 - **AI**: OpenAI GPT-4o (v5 SDK)

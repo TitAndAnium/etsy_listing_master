@@ -4,7 +4,9 @@
     "test:ci": "npm run emulators:clean && npm test",
     "emulators": "firebase emulators:start",
     "emulators:clean": "taskkill /f /im node.exe /im java.exe 2>nul & firebase emulators:start --only functions,firestore",
-    "slack:test": "node -r dotenv/config scripts/slackPing.js 'Webhook werkt'"
+    "slack:test": "node -r dotenv/config scripts/slackPing.js 'Webhook werkt'",
+    "test:rules": "jest --config ./jest.rules.config.js",
+    "rules:exec": "firebase emulators:exec --only firestore \"npm run test:rules\""
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -16,6 +18,7 @@
     "@testing-library/cypress": "^10.0.3",
     "cross-env": "^7.0.3",
     "cypress": "^14.5.4",
-    "jest": "^30.0.5"
+    "jest": "^29.7.0",
+    "@firebase/rules-unit-testing": "3.0.0"
   }
 }

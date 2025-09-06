@@ -17,10 +17,14 @@ const fs = require('fs');
 const path = require('path');
 const withAuth = require('./utils/authMiddleware');
 const { getPlanByPriceId } = require('./utils/stripeCatalog');
+// A3-4: wallet util voor ledger-mutaties
+const { bookStripeCreditTx, spendCreditsTx } = require('./utils/wallet');
 
 // Initialize Firebase Admin SDK (idempotent)
 try { admin.app(); } catch (e) { admin.initializeApp(); }
 const db = admin.firestore();
+// Losse FieldValue import nodig: admin.firestore.FieldValue bestaat niet meer sinds v12
+const { FieldValue } = require('firebase-admin/firestore');
 
 // Stripe setup from env config
 // Local fallback: read functions/.runtimeconfig.json when emulator doesn't load config
@@ -63,10 +67,17 @@ async function handleCreateCheckoutSession(req, res) {
       return sendJson(res, 422, { error: 'Valuta mismatch t.o.v. catalog' });
     }
 
-    const uid = req.user?.uid || body.uid || null; // fallback
+    const uid = req.user?.uid || null; // uid strictly from verified ID token
+    if (!uid) {
+      return sendJson(res, 401, { error: 'Authentication required' });
+    }
+
+    // Bepaal sessie-modus (payment vs subscription) obv het type prijs
+    const priceObj = await Stripe.prices.retrieve(priceId);
+    const sessionMode = priceObj.type === 'recurring' ? 'subscription' : 'payment';
 
     const session = await Stripe.checkout.sessions.create({
-      mode: 'payment',
+      mode: sessionMode,
       line_items: [{ price: priceId, quantity: 1 }],
       client_reference_id: uid || undefined,
       metadata: { uid: uid || '', priceId },
@@ -127,63 +138,80 @@ async function handleStripeWebhook(req, res) {
 
   try {
     if (event.type === 'checkout.session.completed') {
-      // 1) Retrieve full session incl. line_items for validation
+      // 1) Sessiedata ophalen of bypassen voor lokale CLI-tests
       const base = event.data.object;
-      const session = await Stripe.checkout.sessions.retrieve(base.id, {
-        expand: ['line_items.data.price'],
+
+      const isCliTest =
+        base?.metadata?.testing === 'cli' &&
+        process.env.TEST_ALLOW_CLI_CHECKOUT === '1';
+
+      console.log('🔍 Webhook debug:', {
+        eventType: event.type,
+        metadata: base?.metadata,
+        envFlag: process.env.TEST_ALLOW_CLI_CHECKOUT,
+        isCliTest
       });
 
-      const uidMeta   = session.metadata?.uid || null;
-      const priceIdMd = session.metadata?.priceId || null;
-      const item      = session.line_items?.data?.[0] || null;
-      const priceObj  = item?.price || null;
-      const priceId   = priceObj?.id || null;
+      let sessionFull = base;
 
-      if (!priceObj || !priceId) {
-        return res.status(400).send('Missing line_items/price on session');
+      if (!isCliTest) {
+        // Echte sessie ophalen bij Stripe
+        sessionFull = await Stripe.checkout.sessions.retrieve(base.id, {
+          expand: ['line_items.data.price'],
+        });
+      } else {
+        console.log(' CLI test-bypass actief (TEST_ALLOW_CLI_CHECKOUT=1)');
+
+        const priceIdMeta = base?.metadata?.priceId || null;
+        const plan = getPlanByPriceId(priceIdMeta);
+        if (!plan) return sendJson(res, 400, { error: 'Price not in catalog (cli)' });
+
+        // 🔧 Belangrijk: ALTÍJD eigen line_items forceren in CLI-bypass (overschrijft eventuele CLI-items)
+        sessionFull = {
+          ...base,
+          line_items: {
+            data: [
+              {
+                price: {
+                  id: priceIdMeta,
+                  currency: String(plan.currency).toLowerCase(),
+                  unit_amount: Number(plan.amount_cents),
+                },
+              },
+            ],
+          },
+        };
       }
 
-      // 2) Validate against catalog
-      const plan = getPlanByPriceId(priceId);
-      if (!plan) return res.status(400).send('Price not in catalog');
+      // Fallback op client_reference_id indien metadata.uid ontbreekt
+      const uidMeta = sessionFull?.metadata?.uid || sessionFull?.client_reference_id || null;
+      if (!uidMeta) return sendJson(res, 400, { error: 'UID ontbreekt in sessie (metadata.uid/client_reference_id)' });
 
-      if (priceIdMd && priceIdMd !== priceId) {
-        return res.status(422).send('priceId mismatch between metadata and line_items');
-      }
-      if (String(priceObj.currency).toLowerCase() !== String(plan.currency).toLowerCase()) {
-        return res.status(422).send('Currency mismatch');
-      }
-      if (Number(priceObj.unit_amount) !== Number(plan.amount_cents)) {
-        return res.status(422).send('Amount mismatch');
-      }
-      if (!uidMeta) {
-        return res.status(400).send('Missing uid metadata');
-      }
+      const item     = sessionFull?.line_items?.data?.[0] || null;
+      const priceObj = item?.price || null;
+      const priceId  = priceObj?.id || null;
+      const plan     = getPlanByPriceId(priceId);
 
-      // 3) Idempotency guard & credit booking
-      const evtRef  = db.collection('stripe_events').doc(event.id);
-      const userRef = db.collection('users').doc(uidMeta);
-      await db.runTransaction(async (tx) => {
-        const seen = await tx.get(evtRef);
-        if (seen.exists) return; // already processed
+      if (!plan) return sendJson(res, 400, { error: 'Onbekende prijs (niet in catalog)' });
+      if (String(priceObj.currency).toLowerCase() !== String(plan.currency).toLowerCase())
+        return sendJson(res, 400, { error: 'Currency mismatch' });
+      if (Number(priceObj.unit_amount) !== Number(plan.amount_cents))
+        return sendJson(res, 400, { error: 'Amount mismatch' });
 
-        const doc = await tx.get(userRef);
-        const current = doc.exists ? (doc.data().credits || 0) : 0;
-        tx.set(userRef, { credits: current + Number(plan.credits) }, { merge: true });
-
-        tx.set(evtRef, {
-          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      // 2) Credit boeken binnen Firestore-transactie
+      await admin.firestore().runTransaction(async (tx) => {
+        await bookStripeCreditTx(tx, admin.firestore(), {
           uid: uidMeta,
+          eventId: event.id,
           priceId,
-          creditsGranted: Number(plan.credits),
-          amount_cents: Number(plan.amount_cents),
-          currency: String(plan.currency).toLowerCase(),
-          sessionId: session.id,
-          eventType: event.type,
+          credits: plan.credits,
+          amount_cents: plan.amount_cents,
+          currency: plan.currency,
+          sessionId: sessionFull.id,
         });
       });
 
-      console.log(`Credited ${Number(plan.credits)} credits to ${uidMeta} (plan=${priceId})`);
+      return sendJson(res, 200, { ok: true });
     }
     return res.status(200).send('[ok]');
   } catch (err) {
@@ -203,12 +231,80 @@ exports.api_generateChainingFromFields = functions.https.onRequest(withAuth((req
 exports.generateFromDumpCore = require('./http_generateFromDumpCore').generateFromDumpCore;
 
 // Stripe + Credits endpoints
-exports.api_createCheckoutSession = functions.https.onRequest((req, res) => {
+exports.api_createCheckoutSession = functions.https.onRequest(withAuth((req, res) => {
   cors(req, res, () => handleCreateCheckoutSession(req, res));
-});
+}));
 
 exports.api_getUserCredits = functions.https.onRequest((req, res) => {
   cors(req, res, () => handleGetUserCredits(req, res));
+});
+
+// Wallet endpoint
+async function handleGetWallet(req, res) {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const m = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!m) return sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
+
+    let decoded;
+    try { decoded = await admin.auth().verifyIdToken(m[1]); }
+    catch (e) { console.error('verifyIdToken failed', e); return sendJson(res, 401, { error: 'Invalid ID token' }); }
+
+    const uid = decoded.uid;
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    const credits = userDoc.exists ? (userDoc.data().credits || 0) : 0;
+
+    const qSnap = await db.collection('wallet_ledger')
+      .where('uid', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+
+    const ledger = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return sendJson(res, 200, { uid, credits, ledger });
+  } catch (err) {
+    console.error('api_getWallet error', err);
+    return sendJson(res, 500, { error: 'Internal error' });
+  }
+}
+
+exports.api_getWallet = functions.https.onRequest((req, res) => {
+  cors(req, res, () => handleGetWallet(req, res));
+});
+
+// Wallet: credits uitgeven
+async function handleSpendCredits(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+  try {
+    const authHeader = req.headers.authorization || '';
+    const m = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!m) return sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
+
+    let decoded;
+    try { decoded = await admin.auth().verifyIdToken(m[1]); }
+    catch { return sendJson(res, 401, { error: 'Invalid ID token' }); }
+
+    const { amount, reason, requestId } = req.body || {};
+    const uid = decoded.uid;
+
+    await db.runTransaction(async (tx) => {
+      await spendCreditsTx(tx, db, { uid, credits: Number(amount), reason, requestId });
+    });
+
+    const after = await db.collection('users').doc(uid).get();
+    const credits = after.exists ? (after.data().credits || 0) : 0;
+    return sendJson(res, 200, { uid, credits });
+  } catch (err) {
+    const code = (err && (err.code === 400 || err.code === 422)) ? err.code : 500;
+    const msg  = code === 422 ? 'Insufficient credits' : (code === 400 ? 'Bad request' : 'Internal error');
+    console.error('api_spendCredits error', err);
+    return sendJson(res, code, { error: msg });
+  }
+}
+
+exports.api_spendCredits = functions.https.onRequest((req, res) => {
+  cors(req, res, () => handleSpendCredits(req, res));
 });
 
 // Webhook: no CORS, raw body needed

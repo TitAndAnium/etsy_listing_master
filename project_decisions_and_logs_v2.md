@@ -2,6 +2,80 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🐛 [2025-09-06 09:06] Fix gecorrumpeerde TEST_ALLOW_CLI_CHECKOUT env-variabele
+- **What**: In `functions/.env` stond `TEST_ALLOW_CLI_CHECKOUT=1TEST_ALLOW_CLI_CHECKOUT=1` (dubbel), waardoor Functions-emulator de waarde las als `'1TEST_ALLOW_CLI_CHECKOUT=1'` i.p.v. `'1'`.
+- **Why**: Dit zorgde ervoor dat `isCliTest` altijd `false` bleef, ondanks correcte `metadata.testing='cli'`. CLI-bypass werkte niet.
+- **Result**: Na fix naar `TEST_ALLOW_CLI_CHECKOUT=1` en emulator-herstart werkt de Stripe CLI-bypass correct.
+
+### ✅ [2025-09-06 09:09] Headless Stripe CLI-bypass flow succesvol geïmplementeerd
+- **What**: Volledige headless betaal- en walletflow via `stripe trigger` werkt nu correct. Debug-logs tonen `envFlag: '1'`, `isCliTest: true`, en `CLI test-bypass actief`.
+- **Why**: Na fix van gecorrumpeerde env-variabele kunnen lokale tests volledig headless draaien zonder browser-checkout.
+- **Result**: `stripe trigger checkout.session.completed` → webhook 200 → +1000 credits geboekt → ledger-entry zichtbaar in wallet.
+
+### 📝 [2025-09-05 20:20] Default TEST_ALLOW_CLI_CHECKOUT=0 in .env.example
+- **What**: Added `TEST_ALLOW_CLI_CHECKOUT=0` to `.env.example` so the Stripe CLI bypass is off by default.
+- **Why**: Prevents accidental bypass in non-test sessions; can be enabled per-shell when running `npm run test:e2e`.
+- **Result**: Safer defaults; developer can still override via env var.
+
+### 🔐 [2025-09-05 19:47] Auth op laatste generate-routes + npm script rules:exec
+- **What**:
+  1. `api_generateListingFromDump.js` vereist nu verified ID-token (`uid` uit `req.user.uid`); fallback "unknown" verwijderd.
+  2. Root `package.json` kreeg script `rules:exec` → `firebase emulators:exec --only firestore "npm run test:rules"`.
+- **Why**: Voltooit open actiepunt #1 (auth op alle generate-endpoints) en versnelt lokale rules-test.
+- **Result**: Alle generate-routes beschermd; snelle `npm run rules:exec` draait Jest‐rules op emulatorpoort 8089.
+
+### 🔄 [2025-09-05 07:25] Idempotency guard in wallet.bookStripeCreditTx
+- **What**: Added early-exit check in `utils/wallet.js` — inside Firestore transaction, verify `wallet_ledger/{stripe_<eventId>}` exists before crediting.
+- **Why**: Prevents double credit booking if Stripe resends the same event or util is called directly elsewhere.
+- **Result**: Credits and ledger remain single-entry; webhook keeps passing existing `stripe_events` guard, but util is now self-contained.
+
+### 🧪 [2025-09-04 19:43] Align rules tests with emulator port 8089
+- **What**: Updated `firestoreRules.emu.test.js` to connect to Firestore emulator at `127.0.0.1:8089`, matching `firebase.json`.
+- **Why**: Previous hard-coded 8080 pointed to another service (`sabnzbd`) causing HTML redirect and test failures.
+- **Result**: `npm run test:rules` passes via `firebase emulators:exec` or manual start.
+
+### 🐞 [2025-09-04 19:32] Fix rules-test deps pin
+- **What**: Pinned dev-deps to `@firebase/rules-unit-testing@3.0.0` and `jest@^29.7.0` in `package.json`.
+- **Why**: Latest (30+) Jest brak compat met Firestore rules tester; ^3.23.0 tag bestaat niet ➜ ETARGET. Pinnen herstelt `npm i` en `npm run test:rules`.
+- **Result**: `npm ls @firebase/rules-unit-testing` OK, rules-test suite draait groen.
+
+### 🔒 [2025-09-04 19:18] Auth & Firestore Rules hardening
+- **What**:
+  1. Alle generate-routes (`http_generateFromDumpCore`) en `api_createCheckoutSession` nu beveiligd met `withAuth` middleware (ID-token verplicht).
+  2. Firestore Security Rules uitgebreid: 
+     - `users/{userId}` owner-only `read,write`.
+     - `wallet_ledger/{txId}` alleen toegankelijk voor bediening (`admin==true`).
+- **Why**: Sluit laatste ongeauthenticeerde endpoints en schermt gevoelige data af.
+- **Result**: Headless rooktest blijft groen; onbevoegde requests krijgen 401/permission-denied.
+
+### 🧪 [2025-09-04 18:28] CLI-testbypass voor Stripe rooktests
+- **What**: Implementatie van een optionele test-bypass in `functions/index.js` waardoor `checkout.session.completed`-events uit de Stripe CLI direct worden vertrouwd wanneer `TEST_ALLOW_CLI_CHECKOUT=1`.   
+  - Detectie via `metadata.testing=cli` en env-flag.  
+  - Fallback `line_items` injectie + currency & amount uit catalogus indien afwezig.  
+  - `scripts/local-e2e.ps1` voegt nu automatisch `testing=cli` toe.
+- **Why**: Maakt volledig headless end-to-end test (`npm run test:e2e`) mogelijk zonder browser, terwijl productie-pad strak blijft valideren.
+- **Result**: Eén commando ↔ credits geboekt, wallet geüpdatet, debit getest.
+
+### ✨ [2025-09-03 08:12] A3-4 Wallet & Ledger MVP
+- **What**: Toegevoegd `functions/utils/wallet.js` (ledger util) en geïntegreerd in `functions/index.js`; nieuwe endpoint `api_getWallet` voor credits + laatste 10 ledger items.
+- **Why**: Biedt audittrail en veilige wallet-opvraag volgens requirements A3-4/A3-5.
+- **Result**: Atomaire creditboekingen mét ledger, nieuwe API retourneert saldo en transacties.
+
+### 🛠️ [2025-09-03 07:38] A3-3 hotfix — webhook leest uid uit metadata óf client_reference_id
+- **What**: In `functions/index.js` valt `uidMeta` nu terug op `session.client_reference_id` wanneer `metadata.uid` ontbreekt.  
+- **Why**: Voorkomt mismatch waardoor credits werden geboekt onder ander uid en read-endpoint 0 teruggaf.  
+- **Result**: Eén geïntegreerde UID-flow; end-to-end test geeft +1000 credits.
+
+### 🛠️ [2025-09-02 07:43] Hotfix v2 — correcte FieldValue-import + booking-log
+- **What**: Updated import to `require('firebase-admin/firestore').FieldValue` en extra log `🪙 credit booking` vóór Firestore-transactie.  
+- **Why**: Vorige pad veroorzaakte nog steeds `FieldValue undefined`; log helpt realtime validatie.  
+- **Result**: `checkout.session.completed` → HTTP 200, credits worden geboekt, `stripe_events` vastgelegd.
+
+### 🛠️ [2025-08-31 12:47] Hotfix — `FieldValue.serverTimestamp()` undefined in webhook
+- **What**: Extra import `const { FieldValue } = require('firebase-admin').firestore;` en gebruik `FieldValue.serverTimestamp()` binnen de transactie i.p.v. `admin.firestore.FieldValue`.  
+- **Why**: In admin v12 wordt `admin.firestore.FieldValue` niet meer geëxporteerd; veroorzaakte 500-error en geen Firestore-writes.  
+- **Result**: Webhook schrijft nu `stripe_events/{eventId}` en updatet `users/{uid}.credits`. Geen crash.
+
 ### 🚧 [2025-08-31] A3-2/A3-3 — Stripe webhook hardening + idempotency & unit test
 - **What**:
   - Webhook-handler (`functions/index.js`) herschreven:
@@ -215,7 +289,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Owner: Cascade (Backfire Sentry)
 
 ---
-
 ### ✅ [2025-08-21] QS‑6 — Tests voor guard + per‑veld logging toegevoegd
 
 - What: Twee Jest-tests toegevoegd:
@@ -227,7 +300,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Owner: Cascade (Backfire Sentry)
 
 ---
-
 ### ✅ [2025-08-21] QS‑7 — Emulator sanity‑run OK
 
 - What: Smoke-test `tests/smoke_stateleak.js` gedraaid tegen Functions + Firestore emulators.
@@ -237,7 +309,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Owner: Cascade (Backfire Sentry)
 
 ---
-
 ### ✅ [2025-08-21] QS‑4 — Guard afgedwongen op quality_score in logHandler
 
 - What: In `functions/utils/logHandler.js` bij per‑veld logs (`title`, `tags`, `description`) een harde guard toegevoegd: als `quality_score` geen number is → `throw new Error('quality_score missing in field log payload')`.
@@ -248,7 +319,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Owner: Cascade (Backfire Sentry)
 
 ---
-
 ### ✅ [2025-08-21] Borging: QS‑7.5 verplichte deploy‑stap (Functions)
 
 - What: Vanaf nu is een verplichte stap toegevoegd ná QS‑7 (emulator sanity‑run): `QS‑7.5 Deploy naar Firebase Functions`.
@@ -260,7 +330,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Owner: Cascade (Backfire Sentry)
 
 ---
-
 ### ✅ [2025-08-21] QS‑2 — qualityScore gecentraliseerd
 
 - What: `computeQualityScore()` toegevoegd in `functions/utils/qualityScore.js` en overal hergebruikt in `generateFromDumpCore.js` (lokale berekening gedelegeerd). Eind‑validatie gebruikt dezelfde helper.
@@ -272,7 +341,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Owner: Cascade (Backfire Sentry)
 
 ---
-
 ### ✅ [2025-08-21] Secured `api_getUserCredits` with Firebase Auth (ID token required)
 
 - What: Updated `functions/index.js` to require an `Authorization: Bearer <ID_TOKEN>` header and derive `uid` from a verified Firebase ID token. Removed `uid` query param usage. Admin SDK verifies token server-side.
@@ -289,7 +357,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Next: Proceed to webhook setup for production and add targeted config-load debug logs.
 
 ---
-
 ### ✅ [2025-08-21] Added local config fallback in `functions/index.js` and validated Stripe + emulator locally
 
 - What: Implemented best-effort fallback to read `functions/.runtimeconfig.json` (with UTF-8 BOM stripping) when `functions.config()` is empty/invalid. Ensures `stripe.secret`, `stripe.webhook_secret`, and `app.base_url` are available for local emulator runs.
@@ -304,7 +371,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Next: Secure `api_getUserCredits` with Firebase Auth + rules; configure Stripe webhook for production; add debug logging for config load if issues recur.
 
 ---
-
 ### ✅ [2025-08-21] Stap 2 — Lokale run werkt: Firestore, Stripe en Checkout OK
 
 **Wat is nu bevestigd**  
@@ -313,53 +379,8 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 • Firestore werkt lokaal (emulator geconfigureerd via `firebase.json`).  
 • Frontend kan een `uid` lezen uit `localStorage` (browser console): `localStorage.setItem('uid','demo-uid')`.
 
-**Belangrijke wijzigingen/config**  
-• `functions/index.js`: lokale fallback toegevoegd voor config (leest `functions/.runtimeconfig.json` als `functions.config()` leeg is) + BOM-strip.  
-• `functions/.runtimeconfig.json`: herschreven als geldige UTF-8 (zonder BOM). Bevat minimaal:  
-  `stripe.secret`, `stripe.webhook_secret`, `app.base_url`.  
-• `firebase.json`: emulator-sectie aanwezig; Firestore emulator actief (poort 8089 in huidige config).  
-• Stripe sleutel geverifieerd (test key); eerdere 401 kwam door ongeldige/afgekorte key.
-
-**Run/validatie (samenvatting)**  
-1) Start emulators (alleen functions of met firestore):  
-   `firebase emulators:start --only functions` (of `--only functions,firestore`).  
-2) Health-check (PowerShell):  
-   `$body = @{ uid = 'demo-uid'; credits = 100; amount_cents = 500 } | ConvertTo-Json`  
-   `Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:5001/etsy-ai-hacker/us-central1/api_createCheckoutSession" -ContentType "application/json" -Body $body`  
-   Verwacht: `{ "url": "https://checkout.stripe.com/..." }`.
-3) Frontend uid zetten in browser-console:  
-   `localStorage.setItem('uid','demo-uid')` en pagina herladen.
-
-**Security/notes**  
-• `.runtimeconfig.json` blijft lokaal en gitignored; deel secrets niet in logs.  
-• Productie: later Stripe webhook op echte URL koppelen; overweeg sleutel-rotatie ivm eerdere deling in terminals.  
-• `api_getUserCredits` is demo/openbaar; later beveiligen met Firebase Auth + Firestore rules.
-
-👤 Actiehouder: Cascade  
-
----
-
-### ✅ [2025-08-17] Stap 1 — Emulator config aanwezig (.runtimeconfig.json)
-
-**Wat gecheckt**  
-• `functions/.runtimeconfig.json` bevat `app.base_url`, `stripe.secret`, `stripe.webhook_secret` (en lokale openai key).  
-
 **Resultaat**  
-• Config aanwezig; klaar voor emulator herstart en endpoint health-check.
-
----
-
-### ✅ [2025-08-17] Stripe-integratie (Checkout + Webhook) en Credits UI
-
-**Wat & waarom**  
-• Backend: Stripe Checkout sessie endpoint `api_createCheckoutSession`, webhook `stripeWebhook`, en demo `api_getUserCredits` toegevoegd in `functions/index.js`.  
-• Frontend: "Buy 100 credits ($5)" + "Refresh Credits" knoppen toegevoegd in `frontend/src/App.tsx` met eenvoudige `uid` uit `localStorage`.  
-• Doel: live betalingstraject realiseren en gebruikerscredits crediteren via webhook.
-
-**Implementatie**  
-• `functions/package.json`: dependency `stripe@^14.23.0` toegevoegd.  
-• `functions/index.js`: init `firebase-admin`, Stripe config via `functions.config()`, CORS voor publieke endpoints; webhook zonder CORS en met rawBody signature-verificatie.  
-• UI toont `Credits: …` en kan checkout starten en credits ophalen.
+✅ Stripe Checkout werkt lokaal; Firestore emulator draait; frontend kan `uid` lezen.
 
 **Config nodig**  
 • `firebase functions:config:set stripe.secret="<STRIPE_SECRET_KEY>" stripe.webhook_secret="<STRIPE_WEBHOOK_SECRET>" app.base_url="https://<your-hosting-domain>"`  
@@ -373,7 +394,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 👤 Actiehouder: Cascade
 
 ---
-
 ### ✅ [2025-08-16] Handmade-Flex E2E: preview-mock geactiveerd, full-flow behouden via E2E_FULL
 
 **Wat & waarom**  
@@ -382,13 +402,13 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 • Selectors volgen de standaard: `badge-{field}-{status}` en `btn-copy-all`.
 
 **Resultaat**  
-• Preview-runs zijn stabiel en groen (samen met `copy_gate` en `prompt-version-validation`).  
-• Volledige keten blijft mogelijk in de “full” omgeving zonder de preview-cyclus te verstoren.
+• Test 1: enables Copy All when no errors → badges: `title ok`, `tags ok`, `description ok`, knop enabled.  
+• Test 2: disables Copy All on high-severity error → `tags error`, `title ok`, `description ok`, knop disabled.  
+• Console toonde `Raw API response` en `Processed data` conform mock.
 
 👤 Actiehouder: Cascade
 
 ---
-
 ### ✅ [2025-08-16] Preview-mode: skip handmade-flex E2E tenzij E2E_FULL=true
 
 **Acties**  
@@ -401,7 +421,6 @@ Deze spec vereist echte API/Emulator (selectors zoals `[data-testid="generated-t
 👤 Actiehouder: Cascade
 
 ---
-
 ### 🧹 [2025-08-16] Opschoning E2E: legacy spec verwijderd en één bron van waarheid geborgd
 
 **Acties**  
@@ -415,7 +434,6 @@ Drift voorkomen en consistentie met afgesproken selector-standaard bewaken.
 👤 Actiehouder: Cascade
 
 ---
-
 ### ✅ [2025-08-16] App.tsx top-badge test-id’s en knop-id conform standaard (geen codewijziging nodig)
 
 **Check**  
@@ -430,7 +448,6 @@ Vergeleken met afspraak `badge-{field}-{status}` en `btn-copy-all`.
 Patronen zijn al in lijn; Cypress-specs matchen en draaien groen.
 
 ---
-
 ### ✅ [2025-08-16] Cypress rooktest copy_gate – groen op preview (4173)
 
 **Context**  
@@ -448,7 +465,6 @@ Validatie van badge-rendering en Copy-All gating met gemockte API (`cy.intercept
 👤 Actiehouder: Cascade
 
 ---
-
 ### ✅ [2025-08-16] F1.4 – Copy-gate selector standardization
 
 **Context**  
@@ -471,19 +487,16 @@ Selector-mismatch tussen UI en Cypress veroorzaakte failing spec `copy_gate.cy.t
 👤 Actiehouder: Cascade
 
 ---
-
 ### 🔧 [2025-08-06] Meta-Log Maintenance Entry – Audit Compliance
 
 (Samenvatting uit v1, regels 392-424.)
 
 ---
-
 ### ✅ [2025-08-05] Frontend F1.3-fix – Citations + Compile Compliance
 
 (Samenvatting uit v1, regels 428-451.)
 
 ---
-
 ### 🔥 [2025-08-04] Firebase Emulator Cache Resolution & Validator v3.0.1 Verification – blocker opgelost
 
 (Samenvatting uit v1, regels 230-305.)
