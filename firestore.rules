@@ -8,7 +8,7 @@ service cloud.firestore {
       // Allow Functions to write logs with proper authentication
       allow create: if request.auth != null && request.auth.uid == 'etsy-ai-hacker-function';
       // Allow admin users to read logs for monitoring
-      allow read: if request.auth != null && request.auth.token.admin == true;
+      allow read: if request.auth != null && request.auth.token.admin==true;
     }
     
     // User Sessions - User can only access their own data
@@ -19,21 +19,21 @@ service cloud.firestore {
     // API Usage Metrics - Functions only
     match /api_metrics/{metricId} {
       allow create, update: if request.auth != null && request.auth.uid == 'etsy-ai-hacker-function';
-      allow read: if request.auth != null && request.auth.token.admin == true;
+      allow read: if request.auth != null && request.auth.token.admin==true;
     }
     
     // Validation Results - Functions write, users read their own
     match /validation_results/{resultId} {
       allow create: if request.auth != null && request.auth.uid == 'etsy-ai-hacker-function';
       allow read: if request.auth != null && 
-        (request.auth.token.admin == true || 
+        (request.auth.token.admin==true || 
          resource.data.user_id == request.auth.uid);
     }
     
     // Prompt Versions - Read-only for functions, admin write
     match /prompt_versions/{versionId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.token.admin == true;
+      allow write: if request.auth != null && request.auth.token.admin==true;
     }
     
     // User Profile & Credits - owner only
@@ -43,7 +43,7 @@ service cloud.firestore {
 
     // Wallet ledger – admin / backend only (Cloud Functions runs as service account with custom claim admin==true)
     match /wallet_ledger/{txId} {
-      allow read, write: if request.auth != null && request.auth.token.admin == true;
+      allow read, write: if request.auth != null && request.auth.token.admin==true;
     }
     
     // Block all other access by default
