@@ -86,6 +86,21 @@ curl -X POST http://localhost:5001/etsy-ai-hacker/us-central1/api_generateListin
   -d '{"text":"handmade wooden jewelry box with velvet interior"}'
 ```
 
+### 🧾 Wallet – credits uitgeven
+POST `api_spendCredits`
+Body: `{ "amount": <number>, "reason": "optioneel", "requestId": "optioneel idempotency key" }`
+Header: `Authorization: Bearer <ID_TOKEN>`
+
+Voorbeeld PowerShell:
+```powershell
+$body = @{ amount = 250; reason = "test"; requestId = [guid]::NewGuid().ToString() } | ConvertTo-Json
+Invoke-RestMethod -Method Post \
+  -Uri "http://127.0.0.1:5001/<project>/us-central1/api_spendCredits" \
+  -Headers @{ Authorization = "Bearer $token" } \
+  -ContentType "application/json" -Body $body
+```
+Antwoord: `{ uid, credits }` (nieuw saldo). Bij te weinig saldo: HTTP 422.
+
 ## 🧪 Local Testing with Emulators
 
 ```powershell
@@ -108,6 +123,25 @@ Invoke-RestMethod -Method Post `
 ```
 
 The request should return either `200 OK` (mock path) or a validation error (422) but **never** `401` or CORS issues.
+
+### 🧑‍💻 Headless E2E Workflow
+Run the full payment → wallet flow with zero UI in three shells:
+
+```powershell
+# Terminal A – Functions + Firestore + Auth on localhost
+npm run emul:func            # (= firebase emulators:start --only functions,firestore,auth)
+
+# Terminal B – Stripe CLI listener
+stripe listen --forward-to http://127.0.0.1:5001/<project-id>/us-central1/stripeWebhook
+
+# Terminal C – Execute Cypress-like headless test (requires TEST_ALLOW_CLI_CHECKOUT=1 in functions/.env)
+npm run test:e2e            # creates checkout.session, grants credits, debits 250 ⇒ saldo 750
+```
+
+For quick rules validation only:
+```powershell
+firebase emulators:exec --only firestore "npm run test:rules"  # runs Jest suite against 127.0.0.1:8089
+```
 
 ### 💳 Stripe (testmodus) – lokaal
 1. Configureer Stripe secrets lokaal (emulators):

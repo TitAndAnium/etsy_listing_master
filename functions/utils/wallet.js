@@ -16,8 +16,12 @@ async function bookStripeCreditTx(tx, db, { uid, eventId, priceId, credits, amou
   const userRef   = db.collection('users').doc(uid);
   const ledgerRef = db.collection('wallet_ledger').doc(ledgerDocIdFromStripe(eventId));
 
-  const snap = await tx.get(userRef);
-  const current = snap.exists ? (snap.data().credits || 0) : 0;
+  // Idempotency guard: abort if ledger entry already exists (duplicate Stripe retry)
+  const existingLedger = await tx.get(ledgerRef);
+  if (existingLedger.exists) return;
+
+  const userSnap = await tx.get(userRef);
+  const current = userSnap.exists ? (userSnap.data().credits || 0) : 0;
 
   tx.set(userRef, { credits: current + Number(credits) }, { merge: true });
   tx.set(ledgerRef, {

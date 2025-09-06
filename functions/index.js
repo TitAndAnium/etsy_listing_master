@@ -67,7 +67,10 @@ async function handleCreateCheckoutSession(req, res) {
       return sendJson(res, 422, { error: 'Valuta mismatch t.o.v. catalog' });
     }
 
-    const uid = req.user?.uid || body.uid || null; // fallback
+    const uid = req.user?.uid || null; // uid strictly from verified ID token
+    if (!uid) {
+      return sendJson(res, 401, { error: 'Authentication required' });
+    }
 
     // Bepaal sessie-modus (payment vs subscription) obv het type prijs
     const priceObj = await Stripe.prices.retrieve(priceId);
@@ -135,70 +138,80 @@ async function handleStripeWebhook(req, res) {
 
   try {
     if (event.type === 'checkout.session.completed') {
-      // 1) Retrieve full session incl. line_items for validation
+      // 1) Sessiedata ophalen of bypassen voor lokale CLI-tests
       const base = event.data.object;
-      const session = await Stripe.checkout.sessions.retrieve(base.id, {
-        expand: ['line_items.data.price'],
+
+      const isCliTest =
+        base?.metadata?.testing === 'cli' &&
+        process.env.TEST_ALLOW_CLI_CHECKOUT === '1';
+
+      console.log('🔍 Webhook debug:', {
+        eventType: event.type,
+        metadata: base?.metadata,
+        envFlag: process.env.TEST_ALLOW_CLI_CHECKOUT,
+        isCliTest
       });
 
-      // Fallback op client_reference_id indien metadata.uid ontbreekt (robuustheid)
-      const uidMeta   = session.metadata?.uid || session.client_reference_id || null;
-      const priceIdMd = session.metadata?.priceId || null;
-      const item      = session.line_items?.data?.[0] || null;
-      const priceObj  = item?.price || null;
-      const priceId   = priceObj?.id || null;
+      let sessionFull = base;
 
-      if (!priceObj || !priceId) {
-        return res.status(400).send('Missing line_items/price on session');
+      if (!isCliTest) {
+        // Echte sessie ophalen bij Stripe
+        sessionFull = await Stripe.checkout.sessions.retrieve(base.id, {
+          expand: ['line_items.data.price'],
+        });
+      } else {
+        console.log(' CLI test-bypass actief (TEST_ALLOW_CLI_CHECKOUT=1)');
+
+        const priceIdMeta = base?.metadata?.priceId || null;
+        const plan = getPlanByPriceId(priceIdMeta);
+        if (!plan) return sendJson(res, 400, { error: 'Price not in catalog (cli)' });
+
+        // 🔧 Belangrijk: ALTÍJD eigen line_items forceren in CLI-bypass (overschrijft eventuele CLI-items)
+        sessionFull = {
+          ...base,
+          line_items: {
+            data: [
+              {
+                price: {
+                  id: priceIdMeta,
+                  currency: String(plan.currency).toLowerCase(),
+                  unit_amount: Number(plan.amount_cents),
+                },
+              },
+            ],
+          },
+        };
       }
 
-      // 2) Validate against catalog
-      const plan = getPlanByPriceId(priceId);
-      if (!plan) return res.status(400).send('Price not in catalog');
+      // Fallback op client_reference_id indien metadata.uid ontbreekt
+      const uidMeta = sessionFull?.metadata?.uid || sessionFull?.client_reference_id || null;
+      if (!uidMeta) return sendJson(res, 400, { error: 'UID ontbreekt in sessie (metadata.uid/client_reference_id)' });
 
-      if (priceIdMd && priceIdMd !== priceId) {
-        return res.status(422).send('priceId mismatch between metadata and line_items');
-      }
-      if (String(priceObj.currency).toLowerCase() !== String(plan.currency).toLowerCase()) {
-        return res.status(422).send('Currency mismatch');
-      }
-      if (Number(priceObj.unit_amount) !== Number(plan.amount_cents)) {
-        return res.status(422).send('Amount mismatch');
-      }
-      if (!uidMeta) {
-        return res.status(400).send('Missing uid metadata');
-      }
+      const item     = sessionFull?.line_items?.data?.[0] || null;
+      const priceObj = item?.price || null;
+      const priceId  = priceObj?.id || null;
+      const plan     = getPlanByPriceId(priceId);
 
-      // 3) Idempotency guard & credit booking + ledger
-      const evtRef  = db.collection('stripe_events').doc(event.id);
-      await db.runTransaction(async (tx) => {
-        const seen = await tx.get(evtRef);
-        if (seen.exists) return; // already processed
+      if (!plan) return sendJson(res, 400, { error: 'Onbekende prijs (niet in catalog)' });
+      if (String(priceObj.currency).toLowerCase() !== String(plan.currency).toLowerCase())
+        return sendJson(res, 400, { error: 'Currency mismatch' });
+      if (Number(priceObj.unit_amount) !== Number(plan.amount_cents))
+        return sendJson(res, 400, { error: 'Amount mismatch' });
 
-        // Ledger + balance update
-        await bookStripeCreditTx(tx, db, {
+      // 2) Credit boeken binnen Firestore-transactie
+      await admin.firestore().runTransaction(async (tx) => {
+        await bookStripeCreditTx(tx, admin.firestore(), {
           uid: uidMeta,
           eventId: event.id,
-          sessionId: session.id,
           priceId,
-          credits: Number(plan.credits),
-          amount_cents: Number(plan.amount_cents),
-          currency: String(plan.currency),
-        });
-
-        tx.set(evtRef, {
-          processedAt: FieldValue.serverTimestamp(),
-          uid: uidMeta,
-          priceId,
-          creditsGranted: Number(plan.credits),
-          amount_cents: Number(plan.amount_cents),
-          currency: String(plan.currency).toLowerCase(),
-          sessionId: session.id,
-          eventType: event.type,
+          credits: plan.credits,
+          amount_cents: plan.amount_cents,
+          currency: plan.currency,
+          sessionId: sessionFull.id,
         });
       });
 
-      console.log(`🧾 ledger + credited ${Number(plan.credits)} to ${uidMeta} (plan=${priceId})`);
+      return sendJson(res, 200, { ok: true });
     }
     return res.status(200).send('[ok]');
   } catch (err) {
@@ -218,9 +231,9 @@ exports.api_generateChainingFromFields = functions.https.onRequest(withAuth((req
 exports.generateFromDumpCore = require('./http_generateFromDumpCore').generateFromDumpCore;
 
 // Stripe + Credits endpoints
-exports.api_createCheckoutSession = functions.https.onRequest((req, res) => {
+exports.api_createCheckoutSession = functions.https.onRequest(withAuth((req, res) => {
   cors(req, res, () => handleCreateCheckoutSession(req, res));
-});
+}));
 
 exports.api_getUserCredits = functions.https.onRequest((req, res) => {
   cors(req, res, () => handleGetUserCredits(req, res));
