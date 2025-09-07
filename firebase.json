@@ -3,6 +3,16 @@
     {
       "source": "functions",
       "codebase": "default",
+      "endpoints": {
+        "api_getWallet":                { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
+        "api_getUserCredits":           { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
+        "api_spendCredits":             { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
+        "api_createCheckoutSession":    { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
+        "stripeWebhook":                { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
+        "api_generateListingFromDump":  { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
+        "api_generateChainingFromFields": { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
+        "generateFromDumpCore":         { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] }
+      },
       "ignore": [
         "node_modules",
         ".git",
