@@ -35,9 +35,9 @@ try {
   }
 } catch (_) { /* noop: fallback best-effort */ }
 
-const stripeSecret = (functions.config().stripe?.secret) || (localConfig.stripe?.secret);
-const webhookSecret = (functions.config().stripe?.webhook_secret) || (localConfig.stripe?.webhook_secret);
-const appBaseUrl = (functions.config().app?.base_url) || (localConfig.app?.base_url) || 'http://localhost:5173';
+const stripeSecret   = process.env.STRIPE_SECRET        || (localConfig.stripe?.secret);
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || (localConfig.stripe?.webhook_secret);
+const appBaseUrl    = process.env.APP_BASE_URL          || (localConfig.app?.base_url) || 'https://us-central1-etsy-ai-hacker.cloudfunctions.net';
 const Stripe = stripeSecret ? require('stripe')(stripeSecret) : null;
 
 // Helper: safe JSON response
