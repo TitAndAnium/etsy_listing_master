@@ -2,6 +2,11 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🗄️ [2025-09-07 17:10] Composite index wallet_ledger → uid+createdAt
+- **What**: Added composite index (`uid ASC`, `createdAt DESC`) to `firestore.indexes.json` for `wallet_ledger` queries.
+- **Why**: Cloud function `api_getWallet` failed with Firestore `FAILED_PRECONDITION` due to missing index when reading ledger with `where('uid').orderBy('createdAt','desc')`.
+- **Result**: Function now returns `{ uid, credits, ledger[] }` instead of `Internal error`.
+
 ### 🔧 [2025-09-06 19:57] Git merge conflicts opgelost + deploy-voorbereiding
 - **What**: Opgeruimd: dubbele `const priceObj` declaraties, git merge markers, en inconsistente webhook-logica in `functions/index.js`.
 - **Why**: Deploy faalde door syntax errors na incomplete merge. Code bevatte zowel oude als nieuwe webhook-implementatie.
