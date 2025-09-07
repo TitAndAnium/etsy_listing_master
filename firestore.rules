@@ -1,4 +1,4 @@
-﻿// Fixed: removed invisible BOM that broke compilation
+// Fixed: removed invisible BOM that broke compilation
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
