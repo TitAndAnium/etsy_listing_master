@@ -1,8 +1,8 @@
 /**
  * Import function triggers from their respective submodules:
  *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
+ * const {onCall} = require("firebase-functions/https");
+ * const {onDocumentWritten} = require("firebase-functions/firestore");
  *
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
@@ -11,7 +11,6 @@ const functions = require("firebase-functions");
 const cors = require('cors')({ origin: true });
 const api_generateListingFromDump = require("./api_generateListingFromDump");
 const api_generateChainingFromFields = require("./api_generateChainingFromFields");
-const generateFromDumpCore = require("./generateFromDumpCore");
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
@@ -235,11 +234,19 @@ exports.generateFromDumpCore = require('./http_generateFromDumpCore').generateFr
 
 // Stripe + Credits endpoints
 exports.api_createCheckoutSession = functions.https.onRequest(withAuth((req, res) => {
-  cors(req, res, () => handleCreateCheckoutSession(req, res));
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).send('');
+  handleCreateCheckoutSession(req, res);
 }));
 
 exports.api_getUserCredits = functions.https.onRequest((req, res) => {
-  cors(req, res, () => handleGetUserCredits(req, res));
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).send('');
+  handleGetUserCredits(req, res);
 });
 
 // Wallet endpoint
@@ -273,7 +280,11 @@ async function handleGetWallet(req, res) {
 }
 
 exports.api_getWallet = functions.https.onRequest((req, res) => {
-  cors(req, res, () => handleGetWallet(req, res));
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).send('');
+  handleGetWallet(req, res);
 });
 
 // Wallet: credits uitgeven
@@ -307,7 +318,11 @@ async function handleSpendCredits(req, res) {
 }
 
 exports.api_spendCredits = functions.https.onRequest((req, res) => {
-  cors(req, res, () => handleSpendCredits(req, res));
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).send('');
+  handleSpendCredits(req, res);
 });
 
 // Webhook: no CORS, raw body needed
