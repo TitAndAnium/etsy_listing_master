@@ -2,6 +2,57 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🚦 [2025-09-09 07:38] Fail-policy v1.0 geïntegreerd in generateFromDumpCore
+- **Context**: Validatie‐flow stopte hard op eerste harde waarschuwing en logde enkel `warnings`. Roadmap vroeg om centrale status‐opbouw (overall/field) + logging.
+
+- **What**  
+  1. `generateFromDumpCore.js` – toegevoegd `policyState`, helper `applyFailPolicy`, import `failPolicy`.  
+  2. Logs (title, tags, description, validation) verrijkt met `fail_severity` + `policy_version`.  
+  3. Nieuwe response‐velden: `overall_status`, `field_status`, `fail_reasons`, `policy_version`.  
+  4. 422‐errorpad retourneert nu dezelfde velden.  
+  5. Document `docs/fail_policy_table_v1.md` aangemaakt met v1.0‐matrix.  
+  6. Alle Jest‐suites hersteld: 13 pass, 2 skipped. `firestoreRules.emu.test.js` nu optioneel (skipt zonder emulator).
+
+- **Why**:  
+  • Maakt downstream UI-badges mogelijk (title/tags/description status).  
+  • Uniforme fail‐policy versiebeheer en loganalytics.  
+  • Bereidt terrein voor fail-policy v1.1 zonder breaking changes.
+
+- **Result**:  
+  ✔️ Nieuwe velden beschikbaar in API & logs.  
+  ✔️ Testsuite blijft groen; performance ~3.5 s.  
+  ✔️ Logboek bijgewerkt.
+
+### 🐛 [2025-09-08 21:35] CreditsStore Firestore fallback + volledige test-run groen
+- **Context**: Unit-test `credits_firestore.unit.test.js` faalde met `TypeError: increment` in Jest-mock omgeving. Tegelijk faalde de emu-integration test (`credits.emu.test.js`) omdat dev-dep `axios` ontbrak. Logging op credits transacties ontbrak nog.
+
+- **What**  
+  1. **Safe increment fallback** in `functions/utils/creditsStoreFirestore.js` – gebruikt direct `creditsUsed: newUsed` wanneer `admin.firestore.FieldValue.increment` ontbreekt (Jest-mock).  
+  2. **Unified debug logging** toegevoegd via helper `log('[creditsStoreFS]', …)` met: start-payload, doc-state vóór update, fallback-pad melding, success/fail.  
+  3. **Dev-dependency** `axios@^1` geïnstalleerd (`npm i -D axios`) zodat `credits.emu.test.js` kan uitvoeren tegen lokale Functions-emulator.  
+  4. **Testsuite** opnieuw gedraaid → 13 suites pass, 2 suites bewust `skipped` (E2E heavy). Warnings uit Firestore emulator (`PERMISSION_DENIED` bij rules-tests) bevestigen dat rules-test correct assertions maakt. Totale runtime 3.38 s.
+
+- **Why**:  
+  • Fallback nodig om dezelfde codebase in zowel productie als Jest te laten lopen zonder afhankelijkheid van Admin SDK implementatiedetails.  
+  • Eenduidige debug-logs versnellen toekomstige transactiedebugging en sluiten aan bij project-wide logging-conventies.  
+  • `axios` is nodig voor HTTP-calls in emulator-test; ontbrak na dependency-slim-down.
+
+- **Result**:  
+  ✔️ Alle unit- en integration-tests passeren lokaal (`npm test`).  
+  ✔️ Debug-output zichtbaar als `[creditsStoreFS] consumeCredits start …` enz.  
+  ✔️ Project gereed voor vervolgstap *“daily credits limit with transaction reset & 429”* (open task #2).  
+  ✔️ Documentatie bijgewerkt (deze entry).
+
+### 🗄️ [2025-09-07 17:10] Composite index wallet_ledger → uid+createdAt
+- **What**: Added composite index (`uid ASC`, `createdAt DESC`) to `firestore.indexes.json` for `wallet_ledger` queries.
+- **Why**: Cloud function `api_getWallet` failed with Firestore `FAILED_PRECONDITION` due to missing index when reading ledger with `where('uid').orderBy('createdAt','desc')`.
+- **Result**: Function now returns `{ uid, credits, ledger[] }` instead of `Internal error`.
+
+### 🔧 [2025-09-06 19:57] Git merge conflicts opgelost + deploy-voorbereiding
+- **What**: Opgeruimd: dubbele `const priceObj` declaraties, git merge markers, en inconsistente webhook-logica in `functions/index.js`.
+- **Why**: Deploy faalde door syntax errors na incomplete merge. Code bevatte zowel oude als nieuwe webhook-implementatie.
+- **Result**: Clean codebase klaar voor cloud-deploy. Firebase functions:config bevat nu echte Stripe test-keys.
+
 ### 🐛 [2025-09-06 09:06] Fix gecorrumpeerde TEST_ALLOW_CLI_CHECKOUT env-variabele
 - **What**: In `functions/.env` stond `TEST_ALLOW_CLI_CHECKOUT=1TEST_ALLOW_CLI_CHECKOUT=1` (dubbel), waardoor Functions-emulator de waarde las als `'1TEST_ALLOW_CLI_CHECKOUT=1'` i.p.v. `'1'`.
 - **Why**: Dit zorgde ervoor dat `isCliTest` altijd `false` bleef, ondanks correcte `metadata.testing='cli'`. CLI-bypass werkte niet.

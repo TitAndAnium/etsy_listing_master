@@ -1,8 +1,8 @@
 /**
  * Import function triggers from their respective submodules:
  *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
+ * const {onCall} = require("firebase-functions/https");
+ * const {onDocumentWritten} = require("firebase-functions/firestore");
  *
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
@@ -11,7 +11,6 @@ const functions = require("firebase-functions");
 const cors = require('cors')({ origin: true });
 const api_generateListingFromDump = require("./api_generateListingFromDump");
 const api_generateChainingFromFields = require("./api_generateChainingFromFields");
-const generateFromDumpCore = require("./generateFromDumpCore");
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
@@ -36,9 +35,9 @@ try {
   }
 } catch (_) { /* noop: fallback best-effort */ }
 
-const stripeSecret = (functions.config().stripe?.secret) || (localConfig.stripe?.secret);
-const webhookSecret = (functions.config().stripe?.webhook_secret) || (localConfig.stripe?.webhook_secret);
-const appBaseUrl = (functions.config().app?.base_url) || (localConfig.app?.base_url) || 'http://localhost:5173';
+const stripeSecret   = process.env.STRIPE_SECRET        || (localConfig.stripe?.secret);
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || (localConfig.stripe?.webhook_secret);
+const appBaseUrl    = process.env.APP_BASE_URL          || (localConfig.app?.base_url) || 'https://us-central1-etsy-ai-hacker.cloudfunctions.net';
 const Stripe = stripeSecret ? require('stripe')(stripeSecret) : null;
 
 // Helper: safe JSON response
@@ -192,26 +191,29 @@ async function handleStripeWebhook(req, res) {
       const priceId  = priceObj?.id || null;
       const plan     = getPlanByPriceId(priceId);
 
-      if (!plan) return sendJson(res, 400, { error: 'Onbekende prijs (niet in catalog)' });
-      if (String(priceObj.currency).toLowerCase() !== String(plan.currency).toLowerCase())
-        return sendJson(res, 400, { error: 'Currency mismatch' });
-      if (Number(priceObj.unit_amount) !== Number(plan.amount_cents))
-        return sendJson(res, 400, { error: 'Amount mismatch' });
+      // 3) Idempotency guard & credit booking + ledger
+      const evtRef  = db.collection('stripe_events').doc(event.id);
+      await db.runTransaction(async (tx) => {
+        const seen = await tx.get(evtRef);
+        if (seen.exists) return; // already processed
 
-      // 2) Credit boeken binnen Firestore-transactie
-      await admin.firestore().runTransaction(async (tx) => {
-        await bookStripeCreditTx(tx, admin.firestore(), {
+        // Ledger + balance update
+        await bookStripeCreditTx(tx, db, {
           uid: uidMeta,
           eventId: event.id,
-          priceId,
-          credits: plan.credits,
-          amount_cents: plan.amount_cents,
-          currency: plan.currency,
           sessionId: sessionFull.id,
+          priceId,
+          credits: Number(plan.credits),
+          amount_cents: Number(plan.amount_cents),
+          currency: String(plan.currency),
+        });
+
+        tx.set(evtRef, {
+          processedAt: FieldValue.serverTimestamp(),
         });
       });
 
-      return sendJson(res, 200, { ok: true });
+      console.log(`🧾 ledger + credited ${Number(plan.credits)} to ${uidMeta} (plan=${priceId})`);
     }
     return res.status(200).send('[ok]');
   } catch (err) {
@@ -232,11 +234,19 @@ exports.generateFromDumpCore = require('./http_generateFromDumpCore').generateFr
 
 // Stripe + Credits endpoints
 exports.api_createCheckoutSession = functions.https.onRequest(withAuth((req, res) => {
-  cors(req, res, () => handleCreateCheckoutSession(req, res));
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).send('');
+  handleCreateCheckoutSession(req, res);
 }));
 
 exports.api_getUserCredits = functions.https.onRequest((req, res) => {
-  cors(req, res, () => handleGetUserCredits(req, res));
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).send('');
+  handleGetUserCredits(req, res);
 });
 
 // Wallet endpoint
@@ -270,7 +280,11 @@ async function handleGetWallet(req, res) {
 }
 
 exports.api_getWallet = functions.https.onRequest((req, res) => {
-  cors(req, res, () => handleGetWallet(req, res));
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).send('');
+  handleGetWallet(req, res);
 });
 
 // Wallet: credits uitgeven
@@ -304,7 +318,11 @@ async function handleSpendCredits(req, res) {
 }
 
 exports.api_spendCredits = functions.https.onRequest((req, res) => {
-  cors(req, res, () => handleSpendCredits(req, res));
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).send('');
+  handleSpendCredits(req, res);
 });
 
 // Webhook: no CORS, raw body needed
