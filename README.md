@@ -392,3 +392,33 @@ See [README-DEV.md](README-DEV.md) for detailed development setup, testing proce
 - **Database**: Firestore with compound indexes
 - **Testing**: Jest with Firebase emulator integration
 - **CI/CD**: GitHub Actions (planned)
+
+## Backend validation & fail-policy
+Zie `docs/fail_policy_table_v1.md` voor de actuele fail-policy-matrix (v1.0).
+
+### Fail Policy v1.0 (single source of truth)
+**Waarom:** uniforme hard/soft-beslissingen per fouttype.  
+**Waar toegepast:** `functions/utils/validators/failPolicy.js` + flow‐projectie in `functions/generateFromDumpCore.js`.
+
+#### Response-uitbreidingen (backwards compatible)
+```jsonc
+{
+  "overall_status": "ok" | "partial" | "error",
+  "field_status": {
+    "title": "ok" | "partial" | "error",
+    "description": "ok" | "partial" | "error",
+    "tags": "ok" | "partial" | "error"
+  },
+  "fail_reasons": {
+    "title": ["..."],
+    "description": ["..."],
+    "tags": ["..."]
+  },
+  "policy_version": "v1.0"
+}
+```
+
+#### Logging-uitbreidingen
+Per veldlog (`title|tags|description`) worden toegevoegd:  
+• `fail_severity`: `'hard' | 'soft' | null`  
+• `policy_version`: `'v1.0'`
