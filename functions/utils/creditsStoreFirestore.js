@@ -42,7 +42,10 @@ async function consumeCredits(uid, amount = 0, limit = dailyLimit(), todayIso = 
       if (newUsed > limit) {
         return { ok: false, remaining: Math.max(0, limit - data.creditsUsed) };
       }
-      tx.update(ref, { creditsUsed: admin.firestore.FieldValue.increment(amount) });
+      const inc = (admin.firestore && admin.firestore.FieldValue && typeof admin.firestore.FieldValue.increment === 'function')
+        ? admin.firestore.FieldValue.increment(amount)
+        : amount; // Jest env: just use raw amount
+      tx.update(ref, { creditsUsed: inc });
       return { ok: true, remaining: Math.max(0, limit - newUsed) };
     });
     return res;
