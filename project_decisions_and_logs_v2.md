@@ -2,6 +2,30 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🚦 [2025-09-10 16:50] QS-17 — Tag stem dedup v1.0 geïntegreerd (soft-fail)
+- **Context**: Meervoud/enkelvoud varianten vulden de 13-tagslimiet en oogden onprofessioneel. Requirement D2 vereiste stam-deduplicatie met soft-fail `redundant_tag_content`.
+
+- **What**  
+  1. Nieuw util `functions/utils/tagUtils.js` met helpers `asciiLower`, `_stemWord`, `toStemKey`, `dedupeByStem` (dependency-free).  
+  2. Nieuwe Jest-suite `functions/__tests__/tagUtils.dedup.test.js` (4 cases: stemmer, phrase key, dedup, diacritics).  
+  3. Integratie in `generateFromDumpCore.js`:  
+     • Import `dedupeByStem`.  
+     • Dedup toepassen na tags-generatie → behoud volgorde, limit 13.  
+     • Bij duplicates: `applyFailPolicy(policyState,'tags','redundant_tag_content')` + warning injectie.  
+  4. README: sectie “Tag stem dedup v1.0” toegevoegd onder fail-policy.  
+  5. CHANGELOG Unreleased aangevuld.  
+  6. Alle Jest suites groen (14 passed, 2 skipped, 99 tests). Firestore-rules suite eveneens groen met emulator.
+
+- **Why**:  
+  • Verhoogt SEO-relevantie door tagruimte efficiënt te benutten.  
+  • Uniforme ernst via fail-policy v1.0 → UI kan `partial` badge tonen bij duplicate stems.  
+  • Houdt code dependency-light en testbaar.
+
+- **Result**:  
+  ✔️ Response bevat max 13 unieke tags (stam-dedup).  
+  ✔️ Soft-warning `redundant_tag_content` zichtbaar in response/logs; `field_status.tags` switcht naar `partial`.  
+  ✔️ Documentatie en changelog up-to-date; branch gemerged via PR #??.
+
 ### 🚦 [2025-09-09 07:38] Fail-policy v1.0 geïntegreerd in generateFromDumpCore
 - **Context**: Validatie‐flow stopte hard op eerste harde waarschuwing en logde enkel `warnings`. Roadmap vroeg om centrale status‐opbouw (overall/field) + logging.
 
