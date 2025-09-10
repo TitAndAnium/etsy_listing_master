@@ -532,16 +532,6 @@ module.exports = async function generateFromDumpCore(rawText, uid = "unknown", o
         }
         result.fields.tags = Array.isArray(dedupRes.unique) ? dedupRes.unique.slice(0, 13) : output;
         context.tags = dedupRes.unique;
-        if (dedupRes.dropped.length) {
-          applyFailPolicy(policyState, 'tags', 'redundant_tag_content');
-          validationResult.warnings = validationResult.warnings || [];
-          validationResult.warnings.push({
-            field: 'tags',
-            reason: 'redundant_tag_content',
-            message: `deduped ${dedupRes.dropped.length} duplicate stems`,
-            meta: { dropped: dedupRes.dropped, duplicatesMap: dedupRes.duplicatesMap }
-          });
-        }
         // PRE LOG (tags) — skip in tests, never break on log failure
         const preTagsLog = {
           run_id: runId,
