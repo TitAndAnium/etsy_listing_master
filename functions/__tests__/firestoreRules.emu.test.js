@@ -26,6 +26,9 @@ describe('Firestore security rules', () => {
     if (testEnv) await testEnv.cleanup();
   });
 
+  // helper om standaard admin:false mee te sturen zodat rules geen undefined property admin lezen
+  const withAdmin = (data = {}) => ({ admin: false, ...data });
+
   test('users doc owner can read/write, other user denied', async () => {
     const ownerCtx = testEnv.authenticatedContext('userA');
     const otherCtx = testEnv.authenticatedContext('userB');
@@ -34,11 +37,11 @@ describe('Firestore security rules', () => {
     const otherDb = otherCtx.firestore();
 
     // owner write succeeds
-    await assertSucceeds(ownerDb.collection('users').doc('userA').set({ credits: 10 }));
+    await assertSucceeds(ownerDb.collection('users').doc('userA').set(withAdmin({ credits: 10 })));
 
     // other user cannot read or write
     await assertFails(otherDb.collection('users').doc('userA').get());
-    await assertFails(otherDb.collection('users').doc('userA').set({ credits: 20 }));
+    await assertFails(otherDb.collection('users').doc('userA').set(withAdmin({ credits: 20 })));
   });
 
   test('wallet_ledger admin can read/write, normal user denied', async () => {
@@ -48,10 +51,10 @@ describe('Firestore security rules', () => {
     const adminDb = adminCtx.firestore();
     const userDb = userCtx.firestore();
 
-    await assertSucceeds(adminDb.collection('wallet_ledger').doc('tx1').set({ uid: 'userA', delta: 100 }));
+    await assertSucceeds(adminDb.collection('wallet_ledger').doc('tx1').set(withAdmin({ uid: 'userA', delta: 100 })));
     await assertSucceeds(adminDb.collection('wallet_ledger').doc('tx1').get());
 
     await assertFails(userDb.collection('wallet_ledger').doc('tx1').get());
-    await assertFails(userDb.collection('wallet_ledger').doc('tx1').set({}));
+    await assertFails(userDb.collection('wallet_ledger').doc('tx1').set(withAdmin({})));
   });
 });
