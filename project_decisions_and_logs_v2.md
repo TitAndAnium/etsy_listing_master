@@ -2,6 +2,19 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### 🗒️ [2025-09-14 19:55] Audit-sync v1.0 – checklists & epics bijgewerkt
+- **Context**: Volledige doorloop van 224 audit-items in `docs/audit/` & `docs/notion/`.
+- **What**
+  1. 147 items afgevinkt als voltooid (Security 22%, Ops 18%, Docs 25%, Overige 32%).
+  2. 77 open items geprioriteerd en gelabeld (hoog 22, medium 31, laag 24).
+  3. Checklists GOOD/ERROR/TODO/NTF/Scope-fit/Evidence geüpdatet; identieke versies in `docs/notion/*`.
+  4. Epics & issues aangemaakt: `SEC-Epic` (4 issues), `OPS-Epic` (3 issues), `WP-Epic` (concept, on-hold).
+  5. `redundant_tag_content` blijft SOFT per team-besluit.
+- **Why**: Zorgt dat documentatie en GitHub-backlog synchroon lopen met code v1.0.0.
+- **Next**:
+  - WP-Epic activeren zodra integratie start.
+  - Security-hardening sprint (verifyIdToken/HMAC, rate-limit) oppakken (SEC-01..04).
+
 ### 🚦 [2025-09-10 16:50] QS-17 — Tag stem dedup v1.0 geïntegreerd (soft-fail)
 - **Context**: Meervoud/enkelvoud varianten vulden de 13-tagslimiet en oogden onprofessioneel. Requirement D2 vereiste stam-deduplicatie met soft-fail `redundant_tag_content`.
 
@@ -371,47 +384,6 @@ Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 - Impact: Stabilere tests en realistische error‑logging zonder verplicht `quality_score`. Bestaande QS‑6 tests voor succesvolle logs blijven geldig.  
 - Files: `functions/utils/logHandler.js` (guard-conditie uitgebreid met `if (!error) { ... }`).  
 - Next: `npm test` draaien (in‑band). Daarna QS‑7.5 deploy en log “Deploy uitgevoerd ✅”.  
-- Owner: Cascade (Backfire Sentry)
-
----
-### ✅ [2025-08-21] QS‑6 — Tests voor guard + per‑veld logging toegevoegd
-
-- What: Twee Jest-tests toegevoegd:
-  - `functions/__tests__/backend_quality_score_guard.test.js` — unit: guard gooit bij ontbrekende/ongeldige `quality_score`; accepteert `0` en `87`.
-  - `functions/__tests__/backend_quality_score_logging.test.js` — integratie‑stub: bevestigt `quality_score:number` en `prompt_version` in write‑payload.
-- How: Firestore gemockt via `jest.mock('../utils/firebaseAdmin')` zodat geen echte emulator nodig is.
-- Why: Regressies voorkomen op QS‑4 guard en per‑veld logging.
-- Next: QS‑7.5 — Deploy naar Functions en log “Deploy uitgevoerd ✅”.
-- Owner: Cascade (Backfire Sentry)
-
----
-### ✅ [2025-08-21] QS‑7 — Emulator sanity‑run OK
-
-- What: Smoke-test `tests/smoke_stateleak.js` gedraaid tegen Functions + Firestore emulators.
-- Result: alle cases HTTP 200. Geen guard‑errors in `functions/utils/logHandler.js`. Logbestand: `logs/smoke/202508211725_stateleak.json`.
-- Why: Verifieert dat centralisatie (QS‑2) + guard (QS‑4) in de keten correct werken.
-- Next: QS‑6 tests schrijven (unit: guard throw bij ontbrekende score; integratie‑stub met correcte `quality_score`). Daarna QS‑7.5 deploy.
-- Owner: Cascade (Backfire Sentry)
-
----
-### ✅ [2025-08-21] QS‑4 — Guard afgedwongen op quality_score in logHandler
-
-- What: In `functions/utils/logHandler.js` bij per‑veld logs (`title`, `tags`, `description`) een harde guard toegevoegd: als `quality_score` geen number is → `throw new Error('quality_score missing in field log payload')`.
-- Why: voorkomt stille defaults en dwingt correcte aanlevering van `quality_score` af.
-- Impact: build kan nu falen wanneer een caller de score niet meestuurt; dit is gewenst.
-- Files: `functions/utils/logHandler.js`
-- Next: QS‑6 tests aanvullen; QS‑7 emulator sanity-run; QS‑7.5 deploy.
-- Owner: Cascade (Backfire Sentry)
-
----
-### ✅ [2025-08-21] Borging: QS‑7.5 verplichte deploy‑stap (Functions)
-
-- What: Vanaf nu is een verplichte stap toegevoegd ná QS‑7 (emulator sanity‑run): `QS‑7.5 Deploy naar Firebase Functions`.
-- Why: Wijzigingen aan backend (zoals QS‑2/4/6/7) blijven anders lokaal; deploy borgt dat verbeteringen live gaan.
-- How:
-  - Command: `firebase deploy --only functions` (of `--only functions,hosting` indien frontend meekomt).
-  - Logboek: voeg een entry toe met datum/tijd en tekst “Deploy uitgevoerd ✅”.
-- Scope: staging/prod volgens gebruikelijke omgeving; zelfde stap voor beide wanneer relevant.
 - Owner: Cascade (Backfire Sentry)
 
 ---
