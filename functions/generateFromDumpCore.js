@@ -41,6 +41,8 @@ const { computeQualityScore } = require("./utils/qualityScore");
 const { getFailAction } = require('./utils/validators/failPolicy');
 const { precheck, add: addCost } = require('./utils/budgetGuard');
 const { ensureCredits, consumeCredits } = require('./utils/credits');
+const rateLimit = require('./utils/rateLimit');
+const RATE_LIMIT_PER_MIN = parseInt(process.env.RATE_LIMIT_PER_MIN || '12', 10);
 
 // Back-compat: sta zowel (raw, uid, runId, personaLevel) als (raw, uid, {runId, personaLevel, ...}) toe
 function normalizeOptions(optionsOrRunId, maybePersona) {
@@ -99,13 +101,26 @@ async function updateFieldLogsWithQualityScore(runId, uid, qualityScore) {
   }
 }
 
-module.exports = async function generateFromDumpCore(rawText, uid = "unknown", optionsOrRunId, maybePersona) {
+module.exports = async function generateFromDumpCore(rawText, uid = "unknown", options = {}) {
   const IS_TEST_ENV = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID;
-  const options = normalizeOptions(optionsOrRunId, maybePersona);
-  const { runId = "manual-run", personaLevel = 3, allow_handmade = false, gift_mode = false } = options;
+  const optionsOrRunId = options.runId || options;
+  const maybePersona = options.personaLevel;
+  const optionsNormalized = normalizeOptions(optionsOrRunId, maybePersona);
+  const { runId = "manual-run", personaLevel = 3, allow_handmade = false, gift_mode = false } = optionsNormalized;
   const start = Date.now();
   const todayIso = new Date().toISOString().slice(0, 10);
   let qualityScore = null; // ensure defined for later runSummary even if validation fails
+  // ── Per-UID rate-limit (12/min default) ───────────────────────────
+  const rl = await rateLimit.check(uid, RATE_LIMIT_PER_MIN);
+  if (!rl.ok) {
+    return {
+      status: rl.status || 429,
+      error: 'Too many requests',
+      retry_after_seconds: rl.retryAfterSec || 60,
+      limit_per_min: RATE_LIMIT_PER_MIN
+    };
+  }
+  // ──────────────────────────────────────────────────────────────────
   // ---- Budget pre-check ----
   const budget = await precheck();
   if (!budget.ok && budget.hard) {
