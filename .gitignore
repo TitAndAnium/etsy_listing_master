@@ -13,6 +13,9 @@ yarn-debug.log*
 yarn-error.log*
 firebase-debug*.log
 firestore-debug*.log
+firebase-debug.log
+firestore-debug.log
+secret_hits.txt
 
 # Runtime data / pids
 pids
@@ -93,3 +96,16 @@ overdrachtsprompt.txt
 stappen.txt
 cascade*.txt
 .dataconnect
+
+############################
+#  Logs / lokale artefacts
+############################
+wordpress/**/node_modules/
+wordpress/**/vendor/
+wordpress/**/*.zip
+wordpress/**/*.log
+
+############################
+#  Lokale Stripe CLI binary
+############################
+stripe.exe

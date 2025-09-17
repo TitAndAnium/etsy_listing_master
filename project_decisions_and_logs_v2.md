@@ -2,6 +2,68 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### QS 2025-09-17 CORS finalized (sellsiren.com + www)
+What: Restrict CORS_ORIGINS to production domains only; unknown origins now 403.
+Why: Reduce attack surface & prevent silent preflight OK for rogue sites.
+Test: OPTIONS+POST OK from both allowed origins (`https://sellsiren.com`, `https://www.sellsiren.com`); others receive 403 `origin_not_allowed`.
+
+### 📋 [2025-09-15 20:45] WP-MVP afgerond — httpGenerate live, Flatsome-element werkt
+**Context**  
+Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppeling. Doel: een Cloud Function met HMAC-beveiliging + een minimalistische WP-plugin die in elke theme werkt (Flatsome inbegrepen).
+
+**Belangrijkste stappen**
+1. **Cloud Function**  
+   • Nieuw bestand `functions/handlers/httpGenerate.js` – HMAC + CORS verificatie.  
+   • Export via lazy-require in `functions/index.js` om deploy-timeout (<10 s) te voorkomen.  
+   • `.env.example` uitgebreid met `API_HMAC_SECRET`, `CORS_ORIGINS`.  
+   • Deploy met `firebase deploy --only functions:httpGenerate` (2nd Gen, Node 20).
+2. **Runtime-vars**  
+   • `API_HMAC_SECRET` = `a8912e8…f94d` (sterk geheim).  
+   • `CORS_ORIGINS` initieel leeg; later ingesteld op `https://sellsiren.com` via Cloud Run revision.
+3. **Rooktest**  
+   • PowerShell-script met HMAC en `origin`-header gaf `{ ok:true }` → backend bevestigt correct.
+4. **WP-plugin v0.1.0**  
+   • Map `wordpress/etsy-ai-listing/` met: settings-pagina, REST-proxy, shortcode `[etsy_ai_generator]`.  
+   • Initieel fatal error bij activatie (white-screen, geen debug.log).
+5. **Oplossing fatal**  
+   • Volledig herschreven plugin → **v0.2.0**:  
+     – Activation-hook met PHP/WP-versie-checks.  
+     – Guards rond dubbele functies.  
+     – `add_ux_builder_shortcode` alleen als Flatsome aanwezig.  
+     – Shortcode-registratie op `init`; veiligere JSON-afhandeling.
+6. **Flatsome UX-element**  
+   • UX Builder toont nu “Etsy AI Generator” blok (opties: placeholder, button_text).  
+   • Drag-&-drop getest op sellsiren.com → genereert Title/Tags/Description succesvol.
+
+**Issues & fixes**
+| Issue | Oorzaak | Fix |
+|-------|---------|-----|
+| Deploy-timeout (10 s) | Top-level require laadde OpenAI-SDK tijdens analyse | Lazy-require binnen export |
+| `functions:env:set` niet gevonden | Oude Firebase-CLI in PATH | Upgrade → 14.16 & console-vars gebruikt |
+| Plugin fatal tijdens activatie | Functieconflict / Flatsome constant niet gedef. | v0.2.0 met guards & versie-checks |
+
+**Resultaat**
+✔️ httpGenerate live met HMAC + CORS  
+✔️ WP-plugin actief; settings ingevuld  
+✔️ Flatsome-element operational → demo screenshot bevestigd  
+
+**Next**
+– Optionele tag `v1.1.0` zodra branches gemerged op `main`.  
+– Overweeg caching/throttling in WP voor UX-responsiviteit.  
+– Documenteer installer-stappen in `README-DEV.md`.
+
+### 🚀 [2025-09-14 20:55] WP-MVP kick-off — HTTPS endpoint & WP plugin skeleton
+- **Context**: Backend v1.0 (incl. rate-limit) is afgerond en gemerged. Start integratie met WordPress/Flatsome.
+- **What**
+  1. Nieuwe Cloud Function `functions/handlers/httpGenerate.js` toegevoegd (HMAC + CORS).
+  2. Export `httpGenerate` opgenomen in `functions/index.js`.
+  3. `.env.example` uitgebreid met `API_HMAC_SECRET` en `CORS_ORIGINS` placeholders.
+  4. WordPress plugin skeleton `wordpress/etsy-ai-listing/etsy-ai-listing.php` aangemaakt (settings, REST proxy, shortcode).
+- **Next**
+  - Function deployen en env vars instellen.
+  - Plugin afronden & e2e-test op WP-site.
+  - (Nice-to-have) Git tag v1.1.0 na merge.
+
 ### 🗒️ [2025-09-14 19:55] Audit-sync v1.0 – checklists & epics bijgewerkt
 - **Context**: Volledige doorloop van 224 audit-items in `docs/audit/` & `docs/notion/`.
 - **What**

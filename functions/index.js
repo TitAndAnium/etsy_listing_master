@@ -329,3 +329,9 @@ exports.api_spendCredits = functions.https.onRequest((req, res) => {
 exports.stripeWebhook = functions.https.onRequest((req, res) => {
   return handleStripeWebhook(req, res);
 });
+
+// 👉 Lazy require to keep cold-start and deployment analysis fast
+exports.httpGenerate = functions.https.onRequest((req, res) => {
+  const httpGenerate = require('./handlers/httpGenerate');
+  return httpGenerate(req, res);
+});

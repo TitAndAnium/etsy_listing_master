@@ -28,7 +28,9 @@ async function writeRunSummary({
   qualityScore,
   startedAt,
   modelsUsed,
-  warnings
+  warnings,
+  bucket_key,
+  credits_remaining,
 }) {
   const finishedAt = Date.now();
   const latencyMs = finishedAt - startedAt;
@@ -44,7 +46,9 @@ async function writeRunSummary({
     quality_score: qualityScore,
     cost_estimate_usd: Number(costUsd.toFixed(4)),
     warnings_total: warnings.length,
-    run_id: runId
+    run_id: runId,
+    bucket_key: bucket_key || null,
+    credits_remaining: typeof credits_remaining === 'number' ? credits_remaining : null,
   };
 
   // write to Firestore (if uid === testuser123 or in prod)
@@ -64,6 +68,8 @@ async function writeRunSummary({
     uid,
     tokens_in: tokensInTotal,
     tokens_out: tokensOutTotal,
+    bucket_key,
+    credits_remaining,
     quality_score: qualityScore,
     latency_ms: latencyMs,
     cost_estimate_usd: summary.cost_estimate_usd
