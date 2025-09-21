@@ -2,12 +2,61 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+### QS 2025-09-21 CORS + HMAC hardening complete (rev 00019)
+What:
+1. CORS-flow herzien – alleen blokkeren bij aanwezige maar ongeautoriseerde `Origin`.
+2. Server-to-server (geen `Origin`) nu toegestaan; browserflows blijven whitelisted (`CORS_ORIGINS`).
+3. Method-gate verplaatst vóór CORS-check → `GET` geeft 405 i.p.v. misleidende 403.
+4. HMAC-verify: hex-secret uit env, lowercase-sig tolerant, `req.rawBody` preferred, timing-safe compare op hex-buffers.
+5. Credits-guard importpad gefixt (`creditsStoreFirestore`) → 429 werkt weer en header `x-credits-remaining` ook bij limit-hit.
+6. Optioneel debug-header `x-debug-cors` wanneer `DEBUG_TOOLS=1` voor snelle diagnose.
+7. Slack-alerts blijven intact; latency-alert & 5xx-alert getest.
+Why: Prod-veilig pad zonder onterechte CORS-blokkades, robuuste HMAC en transparante logging/alerts.
+Decisions:
+• `API_HMAC_SECRET` in Cloud Run env (later migreren naar Secret Manager).  
+• `DEBUG_TOOLS` standaard `0`; tijdelijk `1` bij dieptest.
+Tests:
+• PowerShell POST zonder `Origin` → 200 ok, `corsOk=true`.  
+• Browser-sim (Origin=https://sellsiren.com) → 200 ok + header zichtbaar.  
+• 5xx & latency debug-flags posten 🛑 / ⚠️ in `#onebox-ops`.  
+• 501-ste request ⇒ 429 + `x-credits-remaining: 0`.
+
+### QS 2025-09-21 httpGenerate hardening (HMAC/CORS/debug-gates)
+What: HMAC op raw body; server-to-server zonder Origin toegestaan; header `x-credits-remaining` exposed; debug-hooks achter `DEBUG_TOOLS`; 429 zet header op 0.
+Why: Robuustere security en betere DX.
+Test: Server-to-server zonder Origin + geldige HMAC → 200; browser leest header; debug_* werkt alleen als `DEBUG_TOOLS=1`.
+
+### QS 2025-09-21 Slack alerts (5xx + latency) – verified
+What: Slack-meldingen bij 5xx én requests > ALERT_LATENCY_MS.
+Why: Snelle incidentdetectie op productiepad.
+Test: `debug_force_error=1` → 🛑, `debug_sleep=10` → ⚠️ in `#onebox-ops`.
+
+### QS 2025-09-19 Buyer-view sanitize (hide Overview & CTA labels)
+What: Verbergt Overview/CTA labels; behoudt Features & Shipping; CTA-zin blijft laatste regel.
+Why: Schonere storefront-beschrijving zonder technische labels.
+Test: sanitize_description.test.js groen; WP-output toont nette blocks.
+
+### QS 2025-09-19 CTA reliability v3.1
+What: Prompt bump v3.1 + validator injecteert 1-zins CTA bij non-strict; warning `cta_injected`.
+Why: Elimineert `desc_missing_block` zonder onnodige retries.
+Test: input zonder CTA → success=true, warning aanwezig; strict-modus blijft hard fail.
+
+### QS 2025-09-17 Test infra aligned (Firestore emulator 8089 + Jest teardown)
+What: Gestandaardiseerde emulatorpoort (8089) + detectOpenHandles + globale Jest teardown.
+Why: Geen open handles/hangs; credits_guard tests betrouwbaar.
+Test: `npm run emu:firestore` + `npm test` → 15 suites groen, 0 open handles.
+
+### QS 2025-09-17 Credits-guard Firestore live (429 + x-credits-remaining)
+What: Dagelijkse credits-transactie per gebruiker in Firestore; 429 bij overschrijding; header `x-credits-remaining`.
+Why: Persistente, race-veilige kostenlimiet.
+Test: Jest `credits_guard.test` groen (emu 8089); 3e request zelfde uid → 429 `CREDITS_EXHAUSTED`.
+
 ### QS 2025-09-17 CORS finalized (sellsiren.com + www)
 What: Restrict CORS_ORIGINS to production domains only; unknown origins now 403.
 Why: Reduce attack surface & prevent silent preflight OK for rogue sites.
 Test: OPTIONS+POST OK from both allowed origins (`https://sellsiren.com`, `https://www.sellsiren.com`); others receive 403 `origin_not_allowed`.
 
-### 📋 [2025-09-15 20:45] WP-MVP afgerond — httpGenerate live, Flatsome-element werkt
+### [2025-09-15 20:45] WP-MVP afgerond — httpGenerate live, Flatsome-element werkt
 **Context**  
 Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppeling. Doel: een Cloud Function met HMAC-beveiliging + een minimalistische WP-plugin die in elke theme werkt (Flatsome inbegrepen).
 
@@ -52,7 +101,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 – Overweeg caching/throttling in WP voor UX-responsiviteit.  
 – Documenteer installer-stappen in `README-DEV.md`.
 
-### 🚀 [2025-09-14 20:55] WP-MVP kick-off — HTTPS endpoint & WP plugin skeleton
+### [2025-09-14 20:55] WP-MVP kick-off — HTTPS endpoint & WP plugin skeleton
 - **Context**: Backend v1.0 (incl. rate-limit) is afgerond en gemerged. Start integratie met WordPress/Flatsome.
 - **What**
   1. Nieuwe Cloud Function `functions/handlers/httpGenerate.js` toegevoegd (HMAC + CORS).
@@ -64,7 +113,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
   - Plugin afronden & e2e-test op WP-site.
   - (Nice-to-have) Git tag v1.1.0 na merge.
 
-### 🗒️ [2025-09-14 19:55] Audit-sync v1.0 – checklists & epics bijgewerkt
+### [2025-09-14 19:55] Audit-sync v1.0 – checklists & epics bijgewerkt
 - **Context**: Volledige doorloop van 224 audit-items in `docs/audit/` & `docs/notion/`.
 - **What**
   1. 147 items afgevinkt als voltooid (Security 22%, Ops 18%, Docs 25%, Overige 32%).
@@ -77,7 +126,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
   - WP-Epic activeren zodra integratie start.
   - Security-hardening sprint (verifyIdToken/HMAC, rate-limit) oppakken (SEC-01..04).
 
-### 🚦 [2025-09-10 16:50] QS-17 — Tag stem dedup v1.0 geïntegreerd (soft-fail)
+### [2025-09-10 16:50] QS-17 — Tag stem dedup v1.0 geïntegreerd (soft-fail)
 - **Context**: Meervoud/enkelvoud varianten vulden de 13-tagslimiet en oogden onprofessioneel. Requirement D2 vereiste stam-deduplicatie met soft-fail `redundant_tag_content`.
 
 - **What**  
@@ -101,7 +150,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
   ✔️ Soft-warning `redundant_tag_content` zichtbaar in response/logs; `field_status.tags` switcht naar `partial`.  
   ✔️ Documentatie en changelog up-to-date; branch gemerged via PR #??.
 
-### 🚦 [2025-09-09 07:38] Fail-policy v1.0 geïntegreerd in generateFromDumpCore
+### [2025-09-09 07:38] Fail-policy v1.0 geïntegreerd in generateFromDumpCore
 - **Context**: Validatie‐flow stopte hard op eerste harde waarschuwing en logde enkel `warnings`. Roadmap vroeg om centrale status‐opbouw (overall/field) + logging.
 
 - **What**  
@@ -122,7 +171,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
   ✔️ Testsuite blijft groen; performance ~3.5 s.  
   ✔️ Logboek bijgewerkt.
 
-### 🐛 [2025-09-08 21:35] CreditsStore Firestore fallback + volledige test-run groen
+### [2025-09-08 21:35] CreditsStore Firestore fallback + volledige test-run groen
 - **Context**: Unit-test `credits_firestore.unit.test.js` faalde met `TypeError: increment` in Jest-mock omgeving. Tegelijk faalde de emu-integration test (`credits.emu.test.js`) omdat dev-dep `axios` ontbrak. Logging op credits transacties ontbrak nog.
 
 - **What**  
@@ -142,64 +191,64 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
   ✔️ Project gereed voor vervolgstap *“daily credits limit with transaction reset & 429”* (open task #2).  
   ✔️ Documentatie bijgewerkt (deze entry).
 
-### 🗄️ [2025-09-07 17:10] Composite index wallet_ledger → uid+createdAt
+### [2025-09-07 17:10] Composite index wallet_ledger → uid+createdAt
 - **What**: Added composite index (`uid ASC`, `createdAt DESC`) to `firestore.indexes.json` for `wallet_ledger` queries.
 - **Why**: Cloud function `api_getWallet` failed with Firestore `FAILED_PRECONDITION` due to missing index when reading ledger with `where('uid').orderBy('createdAt','desc')`.
 - **Result**: Function now returns `{ uid, credits, ledger[] }` instead of `Internal error`.
 
-### 🔧 [2025-09-06 19:57] Git merge conflicts opgelost + deploy-voorbereiding
+### [2025-09-06 19:57] Git merge conflicts opgelost + deploy-voorbereiding
 - **What**: Opgeruimd: dubbele `const priceObj` declaraties, git merge markers, en inconsistente webhook-logica in `functions/index.js`.
 - **Why**: Deploy faalde door syntax errors na incomplete merge. Code bevatte zowel oude als nieuwe webhook-implementatie.
 - **Result**: Clean codebase klaar voor cloud-deploy. Firebase functions:config bevat nu echte Stripe test-keys.
 
-### 🗄️ [2025-09-07 17:10] Composite index wallet_ledger → uid+createdAt
+### [2025-09-07 17:10] Composite index wallet_ledger → uid+createdAt
 - **What**: Added composite index (`uid ASC`, `createdAt DESC`) to `firestore.indexes.json` for `wallet_ledger` queries.
 - **Why**: Cloud function `api_getWallet` failed with Firestore `FAILED_PRECONDITION` due to missing index when reading ledger with `where('uid').orderBy('createdAt','desc')`.
 - **Result**: Function now returns `{ uid, credits, ledger[] }` instead of `Internal error`.
 
-### 🔧 [2025-09-06 19:57] Git merge conflicts opgelost + deploy-voorbereiding
+### [2025-09-06 19:57] Git merge conflicts opgelost + deploy-voorbereiding
 - **What**: Opgeruimd: dubbele `const priceObj` declaraties, git merge markers, en inconsistente webhook-logica in `functions/index.js`.
 - **Why**: Deploy faalde door syntax errors na incomplete merge. Code bevatte zowel oude als nieuwe webhook-implementatie.
 - **Result**: Clean codebase klaar voor cloud-deploy. Firebase functions:config bevat nu echte Stripe test-keys.
 
-### 🐛 [2025-09-06 09:06] Fix gecorrumpeerde TEST_ALLOW_CLI_CHECKOUT env-variabele
+### [2025-09-06 09:06] Fix gecorrumpeerde TEST_ALLOW_CLI_CHECKOUT env-variabele
 - **What**: In `functions/.env` stond `TEST_ALLOW_CLI_CHECKOUT=1TEST_ALLOW_CLI_CHECKOUT=1` (dubbel), waardoor Functions-emulator de waarde las als `'1TEST_ALLOW_CLI_CHECKOUT=1'` i.p.v. `'1'`.
 - **Why**: Dit zorgde ervoor dat `isCliTest` altijd `false` bleef, ondanks correcte `metadata.testing='cli'`. CLI-bypass werkte niet.
 - **Result**: Na fix naar `TEST_ALLOW_CLI_CHECKOUT=1` en emulator-herstart werkt de Stripe CLI-bypass correct.
 
-### ✅ [2025-09-06 09:09] Headless Stripe CLI-bypass flow succesvol geïmplementeerd
+### [2025-09-06 09:09] Headless Stripe CLI-bypass flow succesvol geïmplementeerd
 - **What**: Volledige headless betaal- en walletflow via `stripe trigger` werkt nu correct. Debug-logs tonen `envFlag: '1'`, `isCliTest: true`, en `CLI test-bypass actief`.
 - **Why**: Na fix van gecorrumpeerde env-variabele kunnen lokale tests volledig headless draaien zonder browser-checkout.
 - **Result**: `stripe trigger checkout.session.completed` → webhook 200 → +1000 credits geboekt → ledger-entry zichtbaar in wallet.
 
-### 📝 [2025-09-05 20:20] Default TEST_ALLOW_CLI_CHECKOUT=0 in .env.example
+### [2025-09-05 20:20] Default TEST_ALLOW_CLI_CHECKOUT=0 in .env.example
 - **What**: Added `TEST_ALLOW_CLI_CHECKOUT=0` to `.env.example` so the Stripe CLI bypass is off by default.
 - **Why**: Prevents accidental bypass in non-test sessions; can be enabled per-shell when running `npm run test:e2e`.
 - **Result**: Safer defaults; developer can still override via env var.
 
-### 🔐 [2025-09-05 19:47] Auth op laatste generate-routes + npm script rules:exec
+### [2025-09-05 19:47] Auth op laatste generate-routes + npm script rules:exec
 - **What**:
   1. `api_generateListingFromDump.js` vereist nu verified ID-token (`uid` uit `req.user.uid`); fallback "unknown" verwijderd.
   2. Root `package.json` kreeg script `rules:exec` → `firebase emulators:exec --only firestore "npm run test:rules"`.
 - **Why**: Voltooit open actiepunt #1 (auth op alle generate-endpoints) en versnelt lokale rules-test.
 - **Result**: Alle generate-routes beschermd; snelle `npm run rules:exec` draait Jest‐rules op emulatorpoort 8089.
 
-### 🔄 [2025-09-05 07:25] Idempotency guard in wallet.bookStripeCreditTx
+### [2025-09-05 07:25] Idempotency guard in wallet.bookStripeCreditTx
 - **What**: Added early-exit check in `utils/wallet.js` — inside Firestore transaction, verify `wallet_ledger/{stripe_<eventId>}` exists before crediting.
 - **Why**: Prevents double credit booking if Stripe resends the same event or util is called directly elsewhere.
 - **Result**: Credits and ledger remain single-entry; webhook keeps passing existing `stripe_events` guard, but util is now self-contained.
 
-### 🧪 [2025-09-04 19:43] Align rules tests with emulator port 8089
+### [2025-09-04 19:43] Align rules tests with emulator port 8089
 - **What**: Updated `firestoreRules.emu.test.js` to connect to Firestore emulator at `127.0.0.1:8089`, matching `firebase.json`.
 - **Why**: Previous hard-coded 8080 pointed to another service (`sabnzbd`) causing HTML redirect and test failures.
 - **Result**: `npm run test:rules` passes via `firebase emulators:exec` or manual start.
 
-### 🐞 [2025-09-04 19:32] Fix rules-test deps pin
+### [2025-09-04 19:32] Fix rules-test deps pin
 - **What**: Pinned dev-deps to `@firebase/rules-unit-testing@3.0.0` and `jest@^29.7.0` in `package.json`.
 - **Why**: Latest (30+) Jest brak compat met Firestore rules tester; ^3.23.0 tag bestaat niet ➜ ETARGET. Pinnen herstelt `npm i` en `npm run test:rules`.
 - **Result**: `npm ls @firebase/rules-unit-testing` OK, rules-test suite draait groen.
 
-### 🔒 [2025-09-04 19:18] Auth & Firestore Rules hardening
+### [2025-09-04 19:18] Auth & Firestore Rules hardening
 - **What**:
   1. Alle generate-routes (`http_generateFromDumpCore`) en `api_createCheckoutSession` nu beveiligd met `withAuth` middleware (ID-token verplicht).
   2. Firestore Security Rules uitgebreid: 
@@ -208,7 +257,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Why**: Sluit laatste ongeauthenticeerde endpoints en schermt gevoelige data af.
 - **Result**: Headless rooktest blijft groen; onbevoegde requests krijgen 401/permission-denied.
 
-### 🧪 [2025-09-04 18:28] CLI-testbypass voor Stripe rooktests
+### [2025-09-04 18:28] CLI-testbypass voor Stripe rooktests
 - **What**: Implementatie van een optionele test-bypass in `functions/index.js` waardoor `checkout.session.completed`-events uit de Stripe CLI direct worden vertrouwd wanneer `TEST_ALLOW_CLI_CHECKOUT=1`.   
   - Detectie via `metadata.testing=cli` en env-flag.  
   - Fallback `line_items` injectie + currency & amount uit catalogus indien afwezig.  
@@ -216,27 +265,27 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Why**: Maakt volledig headless end-to-end test (`npm run test:e2e`) mogelijk zonder browser, terwijl productie-pad strak blijft valideren.
 - **Result**: Eén commando ↔ credits geboekt, wallet geüpdatet, debit getest.
 
-### ✨ [2025-09-03 08:12] A3-4 Wallet & Ledger MVP
+### [2025-09-03 08:12] A3-4 Wallet & Ledger MVP
 - **What**: Toegevoegd `functions/utils/wallet.js` (ledger util) en geïntegreerd in `functions/index.js`; nieuwe endpoint `api_getWallet` voor credits + laatste 10 ledger items.
 - **Why**: Biedt audittrail en veilige wallet-opvraag volgens requirements A3-4/A3-5.
 - **Result**: Atomaire creditboekingen mét ledger, nieuwe API retourneert saldo en transacties.
 
-### 🛠️ [2025-09-03 07:38] A3-3 hotfix — webhook leest uid uit metadata óf client_reference_id
+### [2025-09-03 07:38] A3-3 hotfix — webhook leest uid uit metadata óf client_reference_id
 - **What**: In `functions/index.js` valt `uidMeta` nu terug op `session.client_reference_id` wanneer `metadata.uid` ontbreekt.  
 - **Why**: Voorkomt mismatch waardoor credits werden geboekt onder ander uid en read-endpoint 0 teruggaf.  
 - **Result**: Eén geïntegreerde UID-flow; end-to-end test geeft +1000 credits.
 
-### 🛠️ [2025-09-02 07:43] Hotfix v2 — correcte FieldValue-import + booking-log
-- **What**: Updated import to `require('firebase-admin/firestore').FieldValue` en extra log `🪙 credit booking` vóór Firestore-transactie.  
+### [2025-09-02 07:43] Hotfix v2 — correcte FieldValue-import + booking-log
+- **What**: Updated import to `require('firebase-admin/firestore').FieldValue` en extra log ` credit booking` vóór Firestore-transactie.  
 - **Why**: Vorige pad veroorzaakte nog steeds `FieldValue undefined`; log helpt realtime validatie.  
 - **Result**: `checkout.session.completed` → HTTP 200, credits worden geboekt, `stripe_events` vastgelegd.
 
-### 🛠️ [2025-08-31 12:47] Hotfix — `FieldValue.serverTimestamp()` undefined in webhook
+### [2025-08-31 12:47] Hotfix — `FieldValue.serverTimestamp()` undefined in webhook
 - **What**: Extra import `const { FieldValue } = require('firebase-admin').firestore;` en gebruik `FieldValue.serverTimestamp()` binnen de transactie i.p.v. `admin.firestore.FieldValue`.  
 - **Why**: In admin v12 wordt `admin.firestore.FieldValue` niet meer geëxporteerd; veroorzaakte 500-error en geen Firestore-writes.  
 - **Result**: Webhook schrijft nu `stripe_events/{eventId}` en updatet `users/{uid}.credits`. Geen crash.
 
-### 🚧 [2025-08-31] A3-2/A3-3 — Stripe webhook hardening + idempotency & unit test
+### [2025-08-31] A3-2/A3-3 — Stripe webhook hardening + idempotency & unit test
 - **What**:
   - Webhook-handler (`functions/index.js`) herschreven:
     * Volledige sessie + line_items ophalen en valideren tegen catalogus (bedrag, valuta, priceId).
@@ -245,13 +294,14 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
   - Nieuwe unit-test `functions/__tests__/stripeCatalog.unit.test.js` dekt `getPlanByPriceId()`.
   - README: sectie “Stripe (testmodus) – lokaal” met stappen en curl voorbeeld.
 - **Why**: Verhindert bedragmanipulatie, dubbeltellingen en garandeert correcte credit-toekenning.
+- **Impact**: Main branch now blocks over-budget runs (429) and runs green CI pipeline.
 - **Next**:
   1) Wallet & ledger implementatie.
   2) Extra webhook event-types (refunds).
 - **Owner**: Cascade (Windsurf)
 
 ---
-### 🚧 [2025-08-31] A3-1 — Server-side Stripe guard & plan-catalogus util
+### [2025-08-31] A3-1 — Server-side Stripe guard & plan-catalogus util
 - **What**:
   - Nieuw configbestand `functions/config/stripeCatalog.json` (priceId→credits, amount_cents, currency).
   - Utility `functions/utils/stripeCatalog.js` met `getPlanByPriceId()`.
@@ -266,23 +316,33 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-30] QS-15 gemerged in main (CI groen)
+### [2025-08-30] QS-15 gemerged in main (CI groen)
 - **What**: Feature-branch `fix/auth-credits-rules-v2_3_1` samengevoegd; credits-guard Firestore live, CI-checks groen.
 - **Why**: Functionele oplevering + stabiele pipeline.
+- **Impact**: Productielogica ongewijzigd; CI is betrouwbaar.
+- **Next**:
+  1) Budget-cap guard
+  2) Per-user credits
+  3) Slack alerts (latency/fails)
+  4) Admin overrides logging
+  5) TTL aanzetten in Firestore (console)
+  6) Key rotation check
+  7) Deploy
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-30] QS-15 — Per-user credits guard (Firestore) live
+### [2025-08-30] QS-15 — Per-user credits guard (Firestore) live
 - **What**:
   - Geïntegreerd Firestore-transacties in `generateFromDumpCore.js` via `ensureCredits/consumeCredits` met `todayIso`.
   - Nieuwe integratietest `__tests__/credits.emu.test.js` (geskipt in CI) voor end-to-end credit-verbruik.
   - README uitgebreid met sectie “Credits (Firestore-modus)”.
 - **Why**: Persistente, atomaal beveiligde dagcredits voor gebruikers; voorkomt race-conditions en multi-device inconsistenties.
 - **Impact**: API retourneert 429 bij limietoverschrijding; devs kunnen lokaal testen met emulators.
+- **Next**: Implement hard/soft fail-policy table and tag-stem dedup util (see TODO).
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-29] QS-A1 — Auth hardened + Emulator token harness
+### [2025-08-29] QS-A1 — Auth hardened + Emulator token harness
 - **What**:
   - Added `OPTIONS` bypass in `authMiddleware.js` to fix CORS preflight.
   - Created `scripts/dev-get-id-token.js` and npm scripts `emul:func`, `dev:token`.
@@ -290,24 +350,31 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
   - Updated README with local testing instructions.
 - **Why**: Secure endpoints while allowing local dev testing without hacks.
 - **Impact**: CORS preflight 204 OK; authenticated POSTs validated; seamless local testing flow.
+- **Files**:
+  - `functions/authMiddleware.js`
+  - `functions/generateFromDumpCore.js`
+  - `scripts/dev-get-id-token.js`
+  - `firebase.json`
+  - `README.md`
+- **Next**: Run full CI matrix; consider stricter field validators behind flag.
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-28] QS-15b — Credits documentatie toegevoegd
+### [2025-08-28] QS-15b — Credits documentatie toegevoegd
 - **What**: README.md credits-sectie geschreven en CHANGELOG.md aangemaakt ([Unreleased]) met runtime DAILY_CREDITS en _resetTestState details.
 - **Why**: Documentatie bijhouden voor devs en reviewers.
 - **Impact**: Geen code; onboarding duidelijker.
 - **Owner**: Cascade (Windsurf)
 
 ---
-### 🔧 [2025-08-28] QS-15a — Fix persisted credits state in Jest
+### [2025-08-28] QS-15a — Fix persisted credits state in Jest
 - **What**: Added `_resetTestState()` helper in `utils/credits.js` and called it in `credits.test.js` `beforeEach`, ensuring per-test isolation. Tests now pass when `DAILY_CREDITS` varies.
 - **Why**: Previous implementation kept in-memory buckets across tests, causing `getBalance` expectation mismatch (60 → 30).
 - **Impact**: All unit tests green with dynamic credit limits; no runtime logic changes.
 - **Owner**: Cascade (Windsurf)
 
 ---
-### 🚧 [2025-08-28] QS-15 — Per-user credits guard (PR-02 open)
+### [2025-08-28] QS-15 — Per-user credits guard (PR-02 open)
 - **What**:
   - Added `utils/credits.js` with `ensureCredits`, `consumeCredits`, `getBalance` and in-memory store for tests.
   - Integrated credits enforcement in `generateFromDumpCore.js` (pre-check + cost deductions).
@@ -319,14 +386,14 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-27] MILESTONE — PR-01 Budget Guard merged (CI groen)
+### [2025-08-27] MILESTONE — PR-01 Budget Guard merged (CI groen)
 - **What**: Daily budget cap guard live on main; secret scan green; E2E CI preview script active.
 - **Why**: Marks stable baseline before rolling out user credits & alerts.
 - **Impact**: Cost overruns prevented; pipeline fully green.
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-27] QS-14 — Budget-guard PR merged + secret-scan groen + E2E CI script
+### [2025-08-27] QS-14 — Budget-guard PR merged + secret-scan groen + E2E CI script
 - **What**:
   - Merged PR *budget-cap-guard* into `chore/ci-e2e` (commit `7f3f6fd`).
   - Secret placeholders geneutraliseerd (OPENAI, SLACK, STRIPE) → secret-scan checks pass.
@@ -337,7 +404,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-27] QS-13 — Budget cap guard live
+### [2025-08-27] QS-13 — Budget cap guard live
 - **What**: Implemented daily budget guard:
   - Added `utils/budgetGuard.js` with `precheck()` and `add()`.
   - Integrated guard into `generateFromDumpCore.js` (pre-generation abort + cost accrual after each field).
@@ -349,7 +416,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-27] MILESTONE — Test suite groen, Slack live, logging opgeschoond
+### [2025-08-27] MILESTONE — Test suite groen, Slack live, logging opgeschoond
 - **What**: 
   - Alle Jest-suites groen (golden + units).
   - Slack webhook werkend + ping script gefixt (proces sluit netjes af).
@@ -370,7 +437,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-27] QS-12 — De-hardcode prompt_version in title-error log
+### [2025-08-27] QS-12 — De-hardcode prompt_version in title-error log
 
 - **What**: Replaced last remaining hard-coded `"v2.7"` in the title catch block with `titlePromptData?.prompt_version || "UNKNOWN"`.
 - **Why**: Keeps all log entries consistent with the actual prompt version loaded at runtime, preventing version drift in analytics.
@@ -379,7 +446,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-24] QS-10 — Test harness fixes (IS_TEST_ENV + relaxed golden assertion)
+### [2025-08-24] QS-10 — Test harness fixes (IS_TEST_ENV + relaxed golden assertion)
 
 - **What**:
   - Introduced `IS_TEST_ENV` flag inside `generateFromDumpCore.js` to bypass per-field validation in Jest/CI.
@@ -393,7 +460,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - **Owner**: Cascade (Windsurf)
 
 ---
-### ✅ [2025-08-24] QS-9 — Run-summary writer & tag stem dedupe util
+### [2025-08-24] QS-9 — Run-summary writer & tag stem dedupe util
 
 - What:
   - Added `utils/runSummary.js` with cost, latency, token aggregation and Firestore write (non-blocking in Jest).
@@ -409,7 +476,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - Owner: Cascade (Backfire Sentry)
 
 ---
-### ✅ [2025-08-24] QS-8 — Preflight router guards + logHandler Jest-mock refinement
+### [2025-08-24] QS-8 — Preflight router guards + logHandler Jest-mock refinement
 
 - What: 
   - Added fail-fast preflight guards in `functions/generateFromDumpCore.js`:
@@ -427,7 +494,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - Owner: Cascade (Backfire Sentry)
 
 ---
-### ✅ [2025-08-23] QS‑6a — Fix raw.split error + dummy tags als JSON (13 items)
+### [2025-08-23] QS‑6a — Fix raw.split error + dummy tags als JSON (13 items)
 
 - What: In [functions/utils/fieldGenerator.js](cci:7://file:///g:/Dev/onebox-hacker/functions/utils/fieldGenerator.js:0:0-0:0) twee aanpassingen:
   - Dummy `tags` response gewijzigd naar een JSON-string met exact 13 lowercase tags.
@@ -435,21 +502,21 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - Why: Losst `raw.split is not a function` op en stabiliseert parsing in tests die JSON voor tags verwachten.
 - Impact: Jest tests voor field generation en logging draaien stabieler; geen timeouts/parse errors.
 - Files: [functions/utils/fieldGenerator.js](cci:7://file:///g:/Dev/onebox-hacker/functions/utils/fieldGenerator.js:0:0-0).
-- Next: Jest clear cache + run in-band; daarna QS‑7.5 deploy en log “Deploy uitgevoerd ✅”.
+- Next: Jest clear cache + run in-band; daarna QS‑7.5 deploy en log “Deploy uitgevoerd ”.
 - Owner: Cascade (Backfire Sentry)
 
 ---
-### ✅ [2025-08-23] QS‑6 — Guard verfijnd: `quality_score` alleen verplicht bij succesvolle veld‑logs
+### [2025-08-23] QS‑6 — Guard verfijnd: `quality_score` alleen verplicht bij succesvolle veld‑logs
 
 - What: In `functions/utils/logHandler.js` wordt `quality_score` nog steeds strikt afgedwongen voor veld‑logs (`title`, `tags`, `description`), maar níét meer wanneer het een error‑log betreft (`error` aanwezig). In succesvolle logs blijft de guard hard (throw bij ontbrekende/ongeldige score).  
 - Why: Voorkomt onterechte throws tijdens foutpaden (bv. prompt‑validatie of API‑fouten), terwijl datakwaliteit op succesvolle paden gewaarborgd blijft.  
 - Impact: Stabilere tests en realistische error‑logging zonder verplicht `quality_score`. Bestaande QS‑6 tests voor succesvolle logs blijven geldig.  
 - Files: `functions/utils/logHandler.js` (guard-conditie uitgebreid met `if (!error) { ... }`).  
-- Next: `npm test` draaien (in‑band). Daarna QS‑7.5 deploy en log “Deploy uitgevoerd ✅”.  
+- Next: `npm test` draaien (in‑band). Daarna QS‑7.5 deploy en log “Deploy uitgevoerd ”.  
 - Owner: Cascade (Backfire Sentry)
 
 ---
-### ✅ [2025-08-21] QS‑2 — qualityScore gecentraliseerd
+### [2025-08-21] QS‑2 — qualityScore gecentraliseerd
 
 - What: `computeQualityScore()` toegevoegd in `functions/utils/qualityScore.js` en overal hergebruikt in `generateFromDumpCore.js` (lokale berekening gedelegeerd). Eind‑validatie gebruikt dezelfde helper.
 - Why: één bron van waarheid, voorkomt drift en bereidt guard (QS‑4) veilig voor.
@@ -460,7 +527,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - Owner: Cascade (Backfire Sentry)
 
 ---
-### ✅ [2025-08-21] Secured `api_getUserCredits` with Firebase Auth (ID token required)
+### [2025-08-21] Secured `api_getUserCredits` with Firebase Auth (ID token required)
 
 - What: Updated `functions/index.js` to require an `Authorization: Bearer <ID_TOKEN>` header and derive `uid` from a verified Firebase ID token. Removed `uid` query param usage. Admin SDK verifies token server-side.
 - Why: Prevents arbitrary access to other users' credits by enforcing authenticated access and token-derived identity.
@@ -476,7 +543,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - Next: Proceed to webhook setup for production and add targeted config-load debug logs.
 
 ---
-### ✅ [2025-08-21] Added local config fallback in `functions/index.js` and validated Stripe + emulator locally
+### [2025-08-21] Added local config fallback in `functions/index.js` and validated Stripe + emulator locally
 
 - What: Implemented best-effort fallback to read `functions/.runtimeconfig.json` (with UTF-8 BOM stripping) when `functions.config()` is empty/invalid. Ensures `stripe.secret`, `stripe.webhook_secret`, and `app.base_url` are available for local emulator runs.
 - Why: Emulator intermittently failed to load runtime config, causing "Stripe is not configured". Fallback unblocks local development and testing.
@@ -490,7 +557,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 - Next: Secure `api_getUserCredits` with Firebase Auth + rules; configure Stripe webhook for production; add debug logging for config load if issues recur.
 
 ---
-### ✅ [2025-08-21] Stap 2 — Lokale run werkt: Firestore, Stripe en Checkout OK
+### [2025-08-21] Stap 2 — Lokale run werkt: Firestore, Stripe en Checkout OK
 
 **Wat is nu bevestigd**  
 • Functions emulator draait stabiel; endpoints geladen: `api_createCheckoutSession`, `api_getUserCredits`, `stripeWebhook` (zie `functions/index.js`).  
@@ -513,7 +580,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 👤 Actiehouder: Cascade
 
 ---
-### ✅ [2025-08-16] Handmade-Flex E2E: preview-mock geactiveerd, full-flow behouden via E2E_FULL
+### [2025-08-16] Handmade-Flex E2E: preview-mock geactiveerd, full-flow behouden via E2E_FULL
 
 **Wat & waarom**  
 • In preview (4173) draait nu een aparte mocked suite in `handmade-flex-e2e.cy.js` (geen emulator nodig).  
@@ -528,7 +595,7 @@ Na backend-release v1.0 (rate-limit) zijn we overgestapt naar de WordPress-koppe
 👤 Actiehouder: Cascade
 
 ---
-### ✅ [2025-08-16] Preview-mode: skip handmade-flex E2E tenzij E2E_FULL=true
+### [2025-08-16] Preview-mode: skip handmade-flex E2E tenzij E2E_FULL=true
 
 **Acties**  
 • `frontend/cypress/e2e/handmade-flex-e2e.cy.js` conditioneel gemaakt: `const fullE2E = !!Cypress.env('E2E_FULL'); (fullE2E ? describe : describe.skip)(...)`.  
@@ -540,7 +607,7 @@ Deze spec vereist echte API/Emulator (selectors zoals `[data-testid="generated-t
 👤 Actiehouder: Cascade
 
 ---
-### 🧹 [2025-08-16] Opschoning E2E: legacy spec verwijderd en één bron van waarheid geborgd
+### [2025-08-16] Opschoning E2E: legacy spec verwijderd en één bron van waarheid geborgd
 
 **Acties**  
 • Verwijderd: `frontend/cypress/e2e/copy_gate.cy - kopie.ts` (legacy variant met afwijkende intercept/selector-patronen).  
@@ -553,7 +620,7 @@ Drift voorkomen en consistentie met afgesproken selector-standaard bewaken.
 👤 Actiehouder: Cascade
 
 ---
-### ✅ [2025-08-16] App.tsx top-badge test-id’s en knop-id conform standaard (geen codewijziging nodig)
+### [2025-08-16] App.tsx top-badge test-id’s en knop-id conform standaard (geen codewijziging nodig)
 
 **Check**  
 Vergeleken met afspraak `badge-{field}-{status}` en `btn-copy-all`.
@@ -567,7 +634,7 @@ Vergeleken met afspraak `badge-{field}-{status}` en `btn-copy-all`.
 Patronen zijn al in lijn; Cypress-specs matchen en draaien groen.
 
 ---
-### ✅ [2025-08-16] Cypress rooktest copy_gate – groen op preview (4173)
+### [2025-08-16] Cypress rooktest copy_gate – groen op preview (4173)
 
 **Context**  
 Validatie van badge-rendering en Copy-All gating met gemockte API (`cy.intercept`).
@@ -584,7 +651,7 @@ Validatie van badge-rendering en Copy-All gating met gemockte API (`cy.intercept
 👤 Actiehouder: Cascade
 
 ---
-### ✅ [2025-08-16] F1.4 – Copy-gate selector standardization
+### [2025-08-16] F1.4 – Copy-gate selector standardization
 
 **Context**  
 Selector-mismatch tussen UI en Cypress veroorzaakte failing spec `copy_gate.cy.ts`.
@@ -606,16 +673,16 @@ Selector-mismatch tussen UI en Cypress veroorzaakte failing spec `copy_gate.cy.t
 👤 Actiehouder: Cascade
 
 ---
-### 🔧 [2025-08-06] Meta-Log Maintenance Entry – Audit Compliance
+### [2025-08-06] Meta-Log Maintenance Entry – Audit Compliance
 
 (Samenvatting uit v1, regels 392-424.)
 
 ---
-### ✅ [2025-08-05] Frontend F1.3-fix – Citations + Compile Compliance
+### [2025-08-05] Frontend F1.3-fix – Citations + Compile Compliance
 
 (Samenvatting uit v1, regels 428-451.)
 
 ---
-### 🔥 [2025-08-04] Firebase Emulator Cache Resolution & Validator v3.0.1 Verification – blocker opgelost
+### [2025-08-04] Firebase Emulator Cache Resolution & Validator v3.0.1 Verification – blocker opgelost
 
 (Samenvatting uit v1, regels 230-305.)
