@@ -1,37 +1,28 @@
-import React, { useState } from 'react'
+import React from 'react';
 
-interface Props {
-  disabled: boolean;
+export default function CopyButton({
+  value,
+  disabled = false
+}: {
   value: string;
-}
-
-export default function CopyButton({ disabled, value }: Props) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    if (disabled) return
-    
+  disabled?: boolean;
+}) {
+  async function onClick(e: React.MouseEvent) {
+    e.preventDefault();
     try {
-      await navigator.clipboard.writeText(value)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch (error) {
-      console.error('Failed to copy:', error)
+      await navigator.clipboard.writeText(value || '');
+    } catch {
+      /* swallow */
     }
   }
-
   return (
     <button
-      className={`ml-2 px-2 py-1 text-sm border rounded ${
-        disabled 
-          ? 'opacity-40 cursor-not-allowed bg-gray-100 text-gray-400' 
-          : 'hover:bg-gray-100 bg-white text-gray-700'
-      }`}
-      onClick={handleCopy}
+      onClick={onClick}
       disabled={disabled}
-      title={disabled ? 'Field invalid - copy disabled' : 'Copy to clipboard'}
+      className="px-2 py-1 border rounded text-sm disabled:opacity-50"
+      title={disabled ? 'Nothing to copy' : 'Copy content'}
     >
-      {copied ? '✓ Copied' : 'Copy'}
+      Copy
     </button>
-  )
+  );
 }
