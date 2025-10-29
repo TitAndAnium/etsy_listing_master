@@ -4,7 +4,8 @@
   "private": false,
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build --mode production",
     "preview": "vite preview --port 4173 --strictPort",
     "preview:ci": "vite preview --host 127.0.0.1 --port 5173 --strictPort",
     "cy:open": "cypress open",

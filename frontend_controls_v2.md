@@ -1,5 +1,7 @@
 # Frontend Controls Mapping – Pre-Run Contextscherm (Stap 1)
 
+> **Stackkeuze (2025-10-02)**: De listing generator frontend wordt gerealiseerd in **React 18 + TypeScript** via Vite. Alle componentnamen en implementatievoorbeelden in dit document verwijzen daarom naar React-varianten (`TitleCard.tsx`, `TargetingControls.tsx`, `useListingStore.ts`). Legacy-verwijzingen naar Vue SFC's blijven uitsluitend ter referentie voor eerdere concepten en zijn niet langer leidend.
+
 **Doel:**
 De gebruiker krijgt na de classifier-run een volledig contextprofiel (ai_fields) te zien en kan belangrijke velden bijsturen voordat de listingprompts starten. Deze mapping is leidend voor alle front-end implementaties van deze stap.
 

@@ -1,7 +1,7 @@
 # LAST MODIFIED: 2025-07-20 - Validator v4 integration
 # COMMIT: Updated for soft-fail mechanism and enhanced SEO patterns
 # AUTHOR: Cascade (Windsurf)
-::VERSION:: v3.0.2
+::VERSION:: v3.1
 
 ::STRUCTURE::
 - Output: ASCII-only text block
@@ -73,8 +73,8 @@ Include size guidance if relevant to the product.
 Give a clear indication of how long it takes, in ASCII-friendly phrasing.
 
 ::: Call To Action ::: **REQUIRED**
-End with a compelling call to action that encourages purchase.
-This section is MANDATORY and must always be included.
+End with exactly ONE short, compelling purchase invitation sentence.
+This section **MUST** always be present. Absence triggers automatic injection (non-strict) or hard fail (strict).
 
 **VALIDATION REQUIREMENT**: Your output will be rejected if it does not contain all mandatory sections, especially the ::: Call To Action ::: block.
 --------------------------------------------

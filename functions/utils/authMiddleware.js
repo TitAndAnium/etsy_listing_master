@@ -11,6 +11,9 @@ try { admin.app(); } catch (_) { admin.initializeApp(); }
 module.exports = function withAuth(handler) {
   return async (req, res) => {
     try {
+      if (req.method === 'OPTIONS') {
+        return handler(req, res);
+      }
       const authHeader = req.headers.authorization || '';
       const match = authHeader.match(/^Bearer\s+(.*)$/i);
       if (!match) return res.status(401).json({ error: 'Missing Authorization Bearer token' });

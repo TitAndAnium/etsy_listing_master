@@ -1,12 +1,18 @@
 {
   "scripts": {
-    "test": "cross-env FIRESTORE_EMULATOR_HOST=localhost:9081 jest --runInBand",
+    "test": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8089 jest --runInBand --detectOpenHandles",
+    "emu:firestore": "firebase emulators:start --only firestore --project etsy-ai-hacker --import ./.emudata --export-on-exit",
     "test:ci": "npm run emulators:clean && npm test",
     "emulators": "firebase emulators:start",
     "emulators:clean": "taskkill /f /im node.exe /im java.exe 2>nul & firebase emulators:start --only functions,firestore",
     "slack:test": "node -r dotenv/config scripts/slackPing.js 'Webhook werkt'",
     "test:rules": "jest --config ./jest.rules.config.js",
     "rules:exec": "firebase emulators:exec --only firestore \"npm run test:rules\""
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "runInBand": true,
+    "globalTeardown": "./functions/jest.teardown.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

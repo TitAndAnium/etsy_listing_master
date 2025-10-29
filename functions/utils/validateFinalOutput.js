@@ -90,8 +90,14 @@ function validateOutput({ title = "", tags = [], description = "" }) {
     // Controleer alleen verplichte blokken als description bestaat
     requiredLabels.forEach(label => {
       if (!hasSection(description, label)) {
-        notes.push(`Description missing required block: ::: ${label} ::: retry_reason:desc_missing_block`);
-        isValid = false;
+        if (label === 'Call To Action' && process.env.VALIDATOR_STRICT !== '1') {
+          // Inject minimale CTA-zin
+          description += `\n\n::: Call To Action :::\nAdd this unique piece to your cart today!`;
+          notes.push('cta_injected');
+        } else {
+          notes.push(`Description missing required block: ::: ${label} ::: retry_reason:desc_missing_block`);
+          isValid = false;
+        }
       }
     });
   }

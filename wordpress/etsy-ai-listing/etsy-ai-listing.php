@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Etsy AI Listing (Connector)
- * Description: Connects to AI listing generator via signed requests. Provides shortcode [etsy_ai_generator] and a Flatsome UX Builder element.
- * Version: 0.2.0
+ * Description: Connects to AI listing generator via signed requests. Provides shortcode [etsy_ai_generator] (legacy HMAC) and [etsy_ai_generator_v2] (iframe). Includes Flatsome UX Builder elements.
+ * Version: 0.3.0
  * Author: TitAndAnium
  */
 
@@ -154,7 +154,17 @@ add_action( 'init', function () {
             body: JSON.stringify({text})
           });
           const j = await r.json().catch(()=>null);
-          if (!r.ok || !j) { out.textContent = 'Error: ' + (j && j.error ? j.error : r.status); return; }
+
+          // ── Graceful handling for credit exhaustion ──────────────────────
+          if (r.status === 429 && j && j.code === 'CREDITS_EXHAUSTED') {
+            out.textContent = 'Dagquotum opgebruikt. Probeer morgen opnieuw of voeg credits toe.';
+            return;
+          }
+
+          if (!r.ok || !j) {
+            out.textContent = 'Error: ' + (j && j.error ? j.error : r.status);
+            return;
+          }
           const f = (j.result && j.result.fields) || {};
           out.textContent =
             'TITLE:\n' + (f.title || '(n/a)') + '\n\n' +
@@ -171,11 +181,16 @@ add_action( 'init', function () {
   } );
 } );
 
+/* ---------------- v2 iframe shortcode (load include file) ---------------- */
+if ( file_exists( plugin_dir_path( __FILE__ ) . 'includes/shortcode-v2-iframe.php' ) ) {
+  require_once plugin_dir_path( __FILE__ ) . 'includes/shortcode-v2-iframe.php';
+}
+
 /* ---------------- Flatsome UX Builder element (guarded) ---------------- */
 add_action( 'init', function () {
   if ( function_exists( 'add_ux_builder_shortcode' ) ) {
     add_ux_builder_shortcode( 'etsy_ai_generator', [
-      'name'      => __( 'Etsy AI Generator', 'etsy-ai-listing' ),
+      'name'      => __( 'Etsy AI Generator (legacy)', 'etsy-ai-listing' ),
       'category'  => __( 'Content', 'etsy-ai-listing' ),
       'thumbnail' => plugin_dir_url( __FILE__ ) . 'ux-thumb.png',
       'options'   => [

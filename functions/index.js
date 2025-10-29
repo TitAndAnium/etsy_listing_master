@@ -7,10 +7,15 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const functions = require("firebase-functions");
+const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require('firebase-functions/params');
 const cors = require('cors')({ origin: true });
-const api_generateListingFromDump = require("./api_generateListingFromDump");
-const api_generateChainingFromFields = require("./api_generateChainingFromFields");
+// Lazy load handlers to speed up deployment analysis
+// const api_generateListingFromDump = require("./api_generateListingFromDump");
+// const api_generateChainingFromFields = require("./api_generateChainingFromFields");
+// const generateV2Handler = require('./handlers/generateV2');
+// const regenerateV2Handler = require('./handlers/regenerateV2');
+// const reviewEditV2Handler = require('./handlers/reviewEditV2');
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
@@ -18,6 +23,12 @@ const withAuth = require('./utils/authMiddleware');
 const { getPlanByPriceId } = require('./utils/stripeCatalog');
 // A3-4: wallet util voor ledger-mutaties
 const { bookStripeCreditTx, spendCreditsTx } = require('./utils/wallet');
+
+// === Firebase Secrets (production) ===
+const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+const STRIPE_SECRET = defineSecret('STRIPE_SECRET');
+const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
+const SLACK_WEBHOOK_URL = defineSecret('SLACK_WEBHOOK_URL');
 
 // Initialize Firebase Admin SDK (idempotent)
 try { admin.app(); } catch (e) { admin.initializeApp(); }
@@ -35,10 +46,55 @@ try {
   }
 } catch (_) { /* noop: fallback best-effort */ }
 
+// Secrets: production uses Firebase Secrets, local/emulator uses .env or .runtimeconfig.json
 const stripeSecret   = process.env.STRIPE_SECRET        || (localConfig.stripe?.secret);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || (localConfig.stripe?.webhook_secret);
 const appBaseUrl    = process.env.APP_BASE_URL          || (localConfig.app?.base_url) || 'https://us-central1-etsy-ai-hacker.cloudfunctions.net';
 const Stripe = stripeSecret ? require('stripe')(stripeSecret) : null;
+
+// Haal origins op uit env óf functions.config() - met lazy eval voor deployment
+let cachedOrigins = null;
+function getAllowedOrigins() {
+  if (cachedOrigins) return cachedOrigins;
+  
+  const raw =
+    (process.env.ALLOWED_ORIGINS && process.env.ALLOWED_ORIGINS.trim()) ||
+    (localConfig.cors?.allowed_origins && localConfig.cors.allowed_origins.trim()) ||
+    // Veilige defaults voor onze hosting + sellsiren productie
+    'https://etsy-ai-hacker.web.app,https://etsy-ai-hacker.firebaseapp.com,https://sellsiren.com,https://www.sellsiren.com';
+
+  cachedOrigins = raw.split(',').map(s => s.trim()).filter(Boolean);
+  return cachedOrigins;
+}
+
+// Vaste, robuuste CORS laag (gebruikt VOOR withAuth)
+function applyCors(req, res) {
+  const origin = req.get('Origin');
+  const allowed = getAllowedOrigins();
+
+  res.set('Vary', 'Origin');
+  res.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (!origin) {
+    // Server-to-server (geen origin): allow maar log voor monitoring
+    res.set('Access-Control-Allow-Origin', '*');
+    console.log('[CORS] Server-to-server request (no Origin header)');
+  } else if (allowed.includes(origin)) {
+    // Bekende origin → echo exact terug
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Access-Control-Allow-Credentials', 'true');
+  } else {
+    // BLOCKED: onbekende origin
+    console.warn('[CORS] BLOCKED - Unknown origin:', origin, 'Allowed:', allowed);
+    // Geen Access-Control-Allow-Origin header → browser blokkeert
+  }
+
+  if (req.method === 'OPTIONS') {
+    // BELANGRIJK: preflight hier direct beëindigen
+    return res.status(204).end();
+  }
+}
 
 // Helper: safe JSON response
 function sendJson(res, status, body) {
@@ -96,20 +152,8 @@ async function handleGetUserCredits(req, res) {
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
 
   try {
-    const authHeader = req.headers.authorization || '';
-    const match = authHeader.match(/^Bearer\s+(.*)$/i);
-    if (!match) return sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
-
-    const idToken = match[1];
-    let decoded;
-    try {
-      decoded = await admin.auth().verifyIdToken(idToken);
-    } catch (e) {
-      console.error('verifyIdToken failed', e);
-      return sendJson(res, 401, { error: 'Invalid ID token' });
-    }
-
-    const uid = decoded.uid;
+    const uid = req.user?.uid;
+    if (!uid) return sendJson(res, 401, { error: 'Authentication required' });
     const ref = db.collection('users').doc(uid);
     const snap = await ref.get();
     const credits = (snap.exists ? (snap.data().credits || 0) : 0);
@@ -222,45 +266,77 @@ async function handleStripeWebhook(req, res) {
   }
 }
 
-exports.api_generateListingFromDump = functions.https.onRequest(withAuth((req, res) => {
-  cors(req, res, () => api_generateListingFromDump(req, res));
-}));
+exports.api_generateListingFromDump = onRequest(
+  { secrets: [OPENAI_API_KEY, SLACK_WEBHOOK_URL] },
+  withAuth((req, res) => {
+    const handler = require("./api_generateListingFromDump");
+    cors(req, res, () => handler(req, res));
+  })
+);
 
-exports.api_generateChainingFromFields = functions.https.onRequest(withAuth((req, res) => {
-  cors(req, res, () => api_generateChainingFromFields(req, res));
-}));
+exports.api_generateChainingFromFields = onRequest(
+  { secrets: [OPENAI_API_KEY, SLACK_WEBHOOK_URL] },
+  withAuth((req, res) => {
+    const handler = require("./api_generateChainingFromFields");
+    cors(req, res, () => handler(req, res));
+  })
+);
+
+exports.api_generateV2 = onRequest(
+  { secrets: [OPENAI_API_KEY, SLACK_WEBHOOK_URL] },
+  (req, res) => {
+    applyCors(req, res);
+    if (req.method === 'OPTIONS') return; // preflight is al afgehandeld
+    const handler = require('./handlers/generateV2');
+    return withAuth(handler)(req, res);
+  }
+);
+
+exports.api_regenerateField = onRequest(
+  { secrets: [OPENAI_API_KEY, SLACK_WEBHOOK_URL] },
+  (req, res) => {
+    applyCors(req, res);
+    if (req.method === 'OPTIONS') return; // preflight is al afgehandeld
+    const handler = require('./handlers/regenerateV2');
+    return withAuth(handler)(req, res);
+  }
+);
+
+exports.api_reviewUserEdit = onRequest(
+  { secrets: [OPENAI_API_KEY, SLACK_WEBHOOK_URL] },
+  (req, res) => {
+    applyCors(req, res);
+    if (req.method === 'OPTIONS') return; // preflight is al afgehandeld
+    const handler = require('./handlers/reviewEditV2');
+    return withAuth(handler)(req, res);
+  }
+);
 
 exports.generateFromDumpCore = require('./http_generateFromDumpCore').generateFromDumpCore;
 
 // Stripe + Credits endpoints
-exports.api_createCheckoutSession = functions.https.onRequest(withAuth((req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).send('');
-  handleCreateCheckoutSession(req, res);
-}));
+exports.api_createCheckoutSession = onRequest(
+  { secrets: [STRIPE_SECRET] },
+  (req, res) => {
+    applyCors(req, res);
+    if (req.method === 'OPTIONS') return; // preflight is al afgehandeld
+    return withAuth(handleCreateCheckoutSession)(req, res);
+  }
+);
 
-exports.api_getUserCredits = functions.https.onRequest((req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).send('');
-  handleGetUserCredits(req, res);
+exports.api_getUserCredits = onRequest((req, res) => {
+  applyCors(req, res);
+  if (req.method === 'OPTIONS') return; // preflight is al afgehandeld
+  return withAuth(handleGetUserCredits)(req, res);
 });
 
 // Wallet endpoint
 async function handleGetWallet(req, res) {
+  if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+
   try {
-    const authHeader = req.headers.authorization || '';
-    const m = authHeader.match(/^Bearer\s+(.+)$/i);
-    if (!m) return sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
-
-    let decoded;
-    try { decoded = await admin.auth().verifyIdToken(m[1]); }
-    catch (e) { console.error('verifyIdToken failed', e); return sendJson(res, 401, { error: 'Invalid ID token' }); }
-
-    const uid = decoded.uid;
+    const uid = req.user?.uid;
+    if (!uid) return sendJson(res, 401, { error: 'Authentication required' });
 
     const userDoc = await db.collection('users').doc(uid).get();
     const credits = userDoc.exists ? (userDoc.data().credits || 0) : 0;
@@ -279,28 +355,19 @@ async function handleGetWallet(req, res) {
   }
 }
 
-exports.api_getWallet = functions.https.onRequest((req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).send('');
-  handleGetWallet(req, res);
+exports.api_getWallet = onRequest((req, res) => {
+  applyCors(req, res);
+  if (req.method === 'OPTIONS') return; // preflight is al afgehandeld
+  return withAuth(handleGetWallet)(req, res);
 });
 
 // Wallet: credits uitgeven
 async function handleSpendCredits(req, res) {
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
   try {
-    const authHeader = req.headers.authorization || '';
-    const m = authHeader.match(/^Bearer\s+(.+)$/i);
-    if (!m) return sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
-
-    let decoded;
-    try { decoded = await admin.auth().verifyIdToken(m[1]); }
-    catch { return sendJson(res, 401, { error: 'Invalid ID token' }); }
-
+    const uid = req.user?.uid;
+    if (!uid) return sendJson(res, 401, { error: 'Authentication required' });
     const { amount, reason, requestId } = req.body || {};
-    const uid = decoded.uid;
 
     await db.runTransaction(async (tx) => {
       await spendCreditsTx(tx, db, { uid, credits: Number(amount), reason, requestId });
@@ -317,21 +384,25 @@ async function handleSpendCredits(req, res) {
   }
 }
 
-exports.api_spendCredits = functions.https.onRequest((req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).send('');
-  handleSpendCredits(req, res);
+exports.api_spendCredits = onRequest((req, res) => {
+  applyCors(req, res);
+  if (req.method === 'OPTIONS') return; // preflight is al afgehandeld
+  return withAuth(handleSpendCredits)(req, res);
 });
 
 // Webhook: no CORS, raw body needed
-exports.stripeWebhook = functions.https.onRequest((req, res) => {
-  return handleStripeWebhook(req, res);
-});
+exports.stripeWebhook = onRequest(
+  { secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET, SLACK_WEBHOOK_URL] },
+  (req, res) => {
+    return handleStripeWebhook(req, res);
+  }
+);
 
 // 👉 Lazy require to keep cold-start and deployment analysis fast
-exports.httpGenerate = functions.https.onRequest((req, res) => {
-  const httpGenerate = require('./handlers/httpGenerate');
-  return httpGenerate(req, res);
-});
+exports.httpGenerate = onRequest(
+  { secrets: [OPENAI_API_KEY, SLACK_WEBHOOK_URL] },
+  (req, res) => {
+    const httpGenerate = require('./handlers/httpGenerate');
+    return httpGenerate(req, res);
+  }
+);

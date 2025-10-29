@@ -12,10 +12,10 @@ function hexToBytes(hex: string): Uint8Array {
 
 async function hmacHex(payload: string): Promise<string> {
   const keyBytes = hexToBytes(KEY_HEX);
-  const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const cryptoKey = await crypto.subtle.importKey('raw', keyBytes.buffer as ArrayBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sigBuf = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(sigBuf))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map((b) => ('00' + b.toString(16)).slice(-2))
     .join('');
 }
 
@@ -27,6 +27,15 @@ export interface GenerateResponse {
 }
 
 export async function postGenerate(text: string, uid: string): Promise<GenerateResponse> {
+  // Guard: gebruik de HMAC-key nooit client-side buiten localhost
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    if (!isLocal) {
+      throw new Error('HMAC signing mag niet in de browser buiten localhost.');
+    }
+  }
+
   const bodyStr = JSON.stringify({ text, uid });
   const ts = Math.floor(Date.now() / 1000);
   const sig = await hmacHex(bodyStr);

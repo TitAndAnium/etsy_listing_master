@@ -1,2 +1,10 @@
 node_modules/
 *.local
+
+# Secrets - NEVER commit these
+.env
+.runtimeconfig.json
+
+# Test artifacts
+firestore-debug.log
+*.log

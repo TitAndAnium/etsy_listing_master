@@ -1,19 +1,18 @@
 export type ValidationLevel = 'ok' | 'warn' | 'error';
-
 export type FieldStatus = 'ok' | 'warn' | 'error';
 
 export interface FieldState {
   label: string;
   content: string;
-  isValid: boolean;
   warnings: number;
-  status: ValidationLevel;
+  status: 'ok' | 'warn' | 'error';
+  isValid?: boolean;
+  message?: string;
 }
-
 export interface ValidationResult {
   isValid?: boolean;
   isSoftFail?: boolean;
-  warnings?: Array<{
+  issues?: Array<{
     type: string;
     severity: 'high' | 'medium' | 'low';
     message: string;
