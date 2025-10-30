@@ -93,3 +93,6 @@ overdrachtsprompt.txt
 stappen.txt
 cascade*.txt
 .dataconnect
+
+# Temporary cleanup trash
+.trash-*
