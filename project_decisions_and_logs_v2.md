@@ -2,6 +2,127 @@
 Vanaf deze versie worden nieuwe log-entries **bovenaan** toegevoegd.
 `project_decisions_and_logs.md` (v1) blijft het volledige archief.
 
+---
+
+## 🧹 [2025-10-30 19:33] Project Cleanup Sweep - Production Deploy SUCCESS
+
+### Sessie Overzicht
+**Doel:** Systematische cleanup van development artifacts + production deployment  
+**Status:** ✅ VOLLEDIG SUCCESVOL  
+**Duur:** ~1.5 uur (18:00-19:33 UTC+1)  
+**Branch:** chore/cleanup-sweep-20251029 → main
+
+### Verwijderd (43 files, ~250 MB)
+**Development Artifacts:**
+- Root node_modules (159 MB), stripe CLI (30 MB), firebase-export, .emudata, debug logs
+
+**Oude Vue Code:**
+- src/ (hele directory), frontend/src/*.vue, frontend/src/main.js
+
+**Deprecated Docs:**
+- STAP2B_* (3 files), implementation_checklist.md, frontend_controls_v2.md
+- cascade v3 strategyplan.txt, overdrachtsprompt.txt, stappen.txt
+- project_decisions_and_logs_stap1_fix.md
+
+**Test/Analysis Scripts:**
+- analyze_v27_prompts.js, test_prompt_validation.js, mock/test JSONs
+- logs/smoke/ (3 files), tests/smoke_stateleak.js
+
+**CORS Duplicates:**
+- cors.env, cors.yaml
+
+### Toegevoegd/Hersteld
+**Chaining Prompt:**
+- functions/prompts/chaining_prompt_v3.3.3.txt (gekopieerd van archive)
+
+**Frontend Complete Stack:**
+- firebase/auth.ts (Firebase init)
+- components/auth/ (AuthProvider, LoginPanel)
+- components/ListingGenerator.tsx (main component)
+- api/ (6 clients: client, env, httpGenerate, legacy, types, v2)
+- state/useListingStore.ts
+- components/dev/ApiModeContext.tsx
+
+**Config Fixes:**
+- firebase.json (hosting config hersteld)
+- .gitignore (.trash-* toegevoegd)
+- package.json (firebase-admin)
+
+**Utilities:**
+- scripts/create_wallet_emulator.js
+
+### Kritieke Beslissingen BEHOUDEN
+1. **jest.rules.config.js** - Actief gebruikt door test:rules script
+2. **functions/prompts/archive/** - Fallback voor api_generateChainingFromFields
+3. **project_decisions_and_logs.md** (V1) - Volledig archief per V2 header
+
+### Deployment
+**Git Flow:**
+```
+pre-cleanup-20251029-2001 (rollback tag)
+  ↓
+chore/cleanup-sweep-20251029 (6 commits)
+  ↓
+main (merged --no-ff)
+  ↓
+production deployed
+```
+
+**Functions Updated (8):**
+- api_generateListingFromDump, api_generateChainingFromFields
+- generateFromDumpCore, api_createCheckoutSession
+- api_getUserCredits, api_getWallet, api_spendCredits, stripeWebhook
+
+**Production URLs:**
+- Hosting: https://etsy-ai-hacker.web.app ✅
+- All functions: nodejs20, v2, us-central1
+
+### Production Test Results
+✅ Login werkt (testuser@example.com)  
+✅ Credits systeem functioneel (500 → 499 na generate)  
+✅ Generate v2 succesvol (HTTP 200, 14s)  
+✅ Output compleet (title + description + 13 tags)  
+✅ Geen console errors  
+✅ CORS correct (production domains whitelisted)
+
+### Kritieke Learnings
+1. **Archive directories kunnen actief zijn** - Altijd fs.readFileSync calls checken
+2. **Preview channels ≠ production CORS** - Whitelist verschilt per domain
+3. **Firebase hosting config** - Kan verdwijnen bij emulator init, handmatig herstellen
+4. **Git checkout van branch** - Snelste manier om missing files te restoren
+5. **PowerShell escaping** - Colons in commit messages breken Invoke-Expression
+
+### Impact
+- **Disk Space:** ~250 MB lokaal vrijgemaakt
+- **Repository:** 43 files changed, +3177/-1716 lines
+- **Code Quality:** Geen deprecated Vue, geen losse test scripts, clean deps
+- **Security:** Geen secrets in filesystem, .trash-* in .gitignore
+
+### Next Actions
+**Immediate (<7d):**
+- ⚠️ Key rotation (secrets zichtbaar in chat sessie)
+- Test Stripe checkout E2E
+- Monitor logs voor chaining prompt path
+
+**Short Term (<30d):**
+- Delete legacy functions (api_generateV2, api_regenerateField, api_reviewUserEdit, httpGenerate)
+- User auto-creation (onCreate trigger)
+- Latency tuning (8s → 15s)
+
+**Medium Term (<3m):**
+- functions.config() deprecation naar dotenv-only (maart 2026 deadline)
+- Archive cleanup (verify + remove als ongebruikt)
+- Stripe test → live mode
+
+### Final Status
+✅ Cleanup complete  
+✅ Production live & functional  
+✅ Code quality improved  
+✅ Repository clean  
+✅ All critical files preserved
+
+---
+
 ### 🗒️ [2025-09-14 19:55] Audit-sync v1.0 – checklists & epics bijgewerkt
 - **Context**: Volledige doorloop van 224 audit-items in `docs/audit/` & `docs/notion/`.
 - **What**
