@@ -1,17 +1,65 @@
-﻿{
+{
   "functions": [
     {
       "source": "functions",
       "codebase": "default",
       "endpoints": {
-        "api_getWallet":                { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
-        "api_getUserCredits":           { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
-        "api_spendCredits":             { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
-        "api_createCheckoutSession":    { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
-        "stripeWebhook":                { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
-        "api_generateListingFromDump":  { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
-        "api_generateChainingFromFields": { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] },
-        "generateFromDumpCore":         { "region": "us-central1", "httpsTrigger": {}, "invoker": ["public"] }
+        "api_getWallet": {
+          "region": "us-central1",
+          "httpsTrigger": {},
+          "invoker": [
+            "public"
+          ]
+        },
+        "api_getUserCredits": {
+          "region": "us-central1",
+          "httpsTrigger": {},
+          "invoker": [
+            "public"
+          ]
+        },
+        "api_spendCredits": {
+          "region": "us-central1",
+          "httpsTrigger": {},
+          "invoker": [
+            "public"
+          ]
+        },
+        "api_createCheckoutSession": {
+          "region": "us-central1",
+          "httpsTrigger": {},
+          "invoker": [
+            "public"
+          ]
+        },
+        "stripeWebhook": {
+          "region": "us-central1",
+          "httpsTrigger": {},
+          "invoker": [
+            "public"
+          ]
+        },
+        "api_generateListingFromDump": {
+          "region": "us-central1",
+          "httpsTrigger": {},
+          "invoker": [
+            "public"
+          ]
+        },
+        "api_generateChainingFromFields": {
+          "region": "us-central1",
+          "httpsTrigger": {},
+          "invoker": [
+            "public"
+          ]
+        },
+        "generateFromDumpCore": {
+          "region": "us-central1",
+          "httpsTrigger": {},
+          "invoker": [
+            "public"
+          ]
+        }
       },
       "ignore": [
         "node_modules",
@@ -27,11 +75,25 @@
     "rules": "firestore.rules"
   },
   "emulators": {
-    "hub": { "port": 4400 },
-    "ui": { "enabled": true, "port": 4001 },
-    "functions": { "port": 5001, "host": "127.0.0.1" },
-    "auth": { "port": 9099, "host": "127.0.0.1" },
-    "firestore": { "port": 8089, "host": "127.0.0.1" },
+    "hub": {
+      "port": 4400
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4001
+    },
+    "functions": {
+      "port": 5001,
+      "host": "127.0.0.1"
+    },
+    "auth": {
+      "port": 9099,
+      "host": "127.0.0.1"
+    },
+    "firestore": {
+      "port": 8089,
+      "host": "127.0.0.1"
+    },
     "singleProjectMode": true
   }
 }
