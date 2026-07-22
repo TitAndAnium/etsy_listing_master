@@ -28,7 +28,7 @@ if (!Cypress.env('E2E_FULL')) {
         }
       }).as('genOk');
 
-      cy.contains('button', 'Generate Listing').should('not.be.disabled').click();
+      cy.contains('button', /^Generate(?: \(v2\))?$/).should('not.be.disabled').click();
       cy.wait('@genOk');
 
       // Top-badges + Copy All (conform standaard)
@@ -57,7 +57,7 @@ if (!Cypress.env('E2E_FULL')) {
         }
       }).as('genErr');
 
-      cy.contains('button', 'Generate Listing').should('not.be.disabled').click();
+      cy.contains('button', /^Generate(?: \(v2\))?$/).should('not.be.disabled').click();
       cy.wait('@genErr');
 
       cy.get('[data-testid="badge-title-ok"]').should('exist');
