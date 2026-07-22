@@ -3,67 +3,68 @@
 // - MET    E2E_FULL => draai de bestaande, volledige suite hieronder (ongewijzigd)
 
 const API_URL = 'http://localhost:5001/etsy-ai-hacker/us-central1/api_generateListingFromDump';
+const LEGACY_API_URL = '**/httpGenerate';
 
 if (!Cypress.env('E2E_FULL')) {
   describe('Handmade-Flex E2E (preview/mocked)', () => {
     beforeEach(() => {
-      cy.visit('/');
+      cy.visit('/', {
+        onBeforeLoad(win) {
+          win.localStorage.setItem('lg_api_mode', 'legacy');
+        }
+      });
       cy.get('textarea').type('dummy'); // knop activeren
     });
 
-    it('happy path: badges groen en Copy All enabled', () => {
-      cy.intercept('POST', API_URL, {
+    it('happy path: resultaatkaarten groen en kopieerbaar', () => {
+      cy.intercept('POST', LEGACY_API_URL, {
         statusCode: 200,
         body: {
-          fields: {
-            title: 'ok title',
-            tags: Array.from({ length: 13 }, (_, i) => `tag${i}`),
-            description: 'ok'
-          },
-          validation: {
-            isValid: true,
-            warnings: [],
-            metrics: { highSeverityWarnings: 0, totalWarnings: 0 }
+          ok: true,
+          result: {
+            fields: {
+              title: 'ok title',
+              tags: Array.from({ length: 13 }, (_, i) => `tag${i}`),
+              description: 'ok'
+            }
           }
         }
       }).as('genOk');
 
-      cy.contains('button', /^Generate(?: \(v2\))?$/).should('not.be.disabled').click();
+      cy.contains('button', 'Generate').should('not.be.disabled').click();
       cy.wait('@genOk');
 
-      // Top-badges + Copy All (conform standaard)
-      cy.get('[data-testid="badge-title-ok"]').should('exist');
-      cy.get('[data-testid="badge-tags-ok"]').should('exist');
-      cy.get('[data-testid="badge-description-ok"]').should('exist');
-      cy.get('[data-testid="btn-copy-all"]').should('not.be.disabled');
+      cy.get('[data-testid="result-card-title"]').should('contain', 'ok title');
+      cy.get('[data-testid="result-card-tags"]').should('contain', 'tag0');
+      cy.get('[data-testid="result-card-description"]').should('contain', 'ok');
+      cy.get('[data-testid="badge-ok"]').should('have.length.at.least', 3);
+      cy.contains('button', 'Copy').should('not.be.disabled');
     });
 
-    it('error op tags: tags=error en Copy All disabled', () => {
-      cy.intercept('POST', API_URL, {
-        statusCode: 422,
+    it('waarschuwing op tags: tags=warn en resultaat blijft zichtbaar', () => {
+      cy.intercept('POST', LEGACY_API_URL, {
+        statusCode: 200,
         body: {
-          fields: {
-            title: 'still ok',
-            tags: Array.from({ length: 13 }, (_, i) => `tag${i}`),
-            description: 'ascii'
-          },
-          validation: {
-            isValid: false,
-            warnings: [
-              { field: 'tags', severity: 'high', message: 'simulated' }
-            ],
-            metrics: { highSeverityWarnings: 1, totalWarnings: 1 }
+          ok: true,
+          result: {
+            fields: {
+              title: 'still ok',
+              tags: {
+                items: Array.from({ length: 13 }, (_, i) => `tag${i}`),
+                warnings: ['simulated']
+              },
+              description: 'ascii'
+            }
           }
         }
       }).as('genErr');
 
-      cy.contains('button', /^Generate(?: \(v2\))?$/).should('not.be.disabled').click();
+      cy.contains('button', 'Generate').should('not.be.disabled').click();
       cy.wait('@genErr');
 
-      cy.get('[data-testid="badge-title-ok"]').should('exist');
-      cy.get('[data-testid="badge-description-ok"]').should('exist');
-      cy.get('[data-testid="badge-tags-error"]').should('exist');
-      cy.get('[data-testid="btn-copy-all"]').should('be.disabled');
+      cy.get('[data-testid="result-card-tags"]').should('contain', 'tag0');
+      cy.get('[data-testid="badge-warn"]').should('exist');
+      cy.contains('1 warning').should('exist');
     });
   });
 
