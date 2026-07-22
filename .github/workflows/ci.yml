@@ -43,6 +43,8 @@ jobs:
       OPENAI_API_KEY: "dummy"
       GCLOUD_PROJECT: "etsy-ai-hacker"
       FIREBASE_CONFIG: '{"projectId":"etsy-ai-hacker"}'
+      VITE_API_BASE_URL: http://localhost:5001/etsy-ai-hacker/us-central1
+      CYPRESS_API_BASE_URL: http://localhost:5001/etsy-ai-hacker/us-central1
 
     steps:
       - uses: actions/checkout@v7
