@@ -9,7 +9,7 @@ jobs:
     name: Secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Scan repo for common secrets
         shell: bash
@@ -26,7 +26,7 @@ jobs:
           fi
 
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: secret-scan-artifacts
           path: secret_hits.txt
@@ -45,9 +45,14 @@ jobs:
       FIREBASE_CONFIG: '{"projectId":"etsy-ai-hacker"}'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -69,7 +74,11 @@ jobs:
           firebase emulators:start --only functions,auth,firestore --project etsy-ai-hacker > emulators.log 2>&1 &
           echo $! > emu.pid
           # Wacht tot Auth (9099) en Functions (5001) luisteren
-          wait-on tcp:127.0.0.1:9099 tcp:127.0.0.1:5001
+          if ! wait-on --timeout 120000 tcp:127.0.0.1:9099 tcp:127.0.0.1:5001; then
+            echo "::error::Firebase-emulators startten niet binnen 120 seconden"
+            tail -n +1 emulators.log || true
+            exit 1
+          fi
 
       - name: Obtain auth token (Auth emulator)
         env:
@@ -154,7 +163,7 @@ jobs:
 
       - name: Upload artifacts (always)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cypress-and-logs
           path: |
